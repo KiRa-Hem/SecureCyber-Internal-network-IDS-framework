@@ -30,3 +30,7 @@ Thumbs.db
 backend/.env
 pip-wheel-metadata/
 models/training_scripts/data/
+data/*.csv
+models/*.pkl
+logs/
+media/videos/
