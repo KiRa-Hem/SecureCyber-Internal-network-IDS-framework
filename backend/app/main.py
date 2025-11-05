@@ -23,7 +23,7 @@ from app.correlator import correlator
 from app.detectors.rule_based import RuleBasedDetector
 from app.detectors.random_forest import RandomForestDetector
 from app.detectors.dnn import DNNDetector
-from app.detectors.dos_detector import DoSDetector
+from app.detectors.ddos_detector import DoSDetector
 
 # Initialize database
 init_db()

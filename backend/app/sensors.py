@@ -8,7 +8,7 @@ from datetime import datetime
 
 from app.packet_capture import PacketCapture
 from app.detectors.rule_based import RuleBasedDetector
-from app.detectors.dos_detector import DoSDetector
+from app.detectors.ddos_detector import DoSDetector
 from app.detectors.random_forest import RandomForestDetector
 from app.detectors.dnn import DNNDetector
 from app.correlator import correlator
@@ -16,6 +16,7 @@ from app.mitigation import mitigation
 from app.cache import cache_manager
 from app.metrics import metrics_collector
 from app.db import db
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 

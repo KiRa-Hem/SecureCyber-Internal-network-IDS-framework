@@ -7,7 +7,7 @@ client = TestClient(app)
 def test_root_endpoint():
     response = client.get("/")
     assert response.status_code == 200
-    assert "SOC IDS Backend API" in response.json()["message"]
+    assert "<title>SecureCyber IDS Dashboard</title>" in response.text
 
 def test_health_check():
     response = client.get("/health")

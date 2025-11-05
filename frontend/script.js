@@ -1,4 +1,4 @@
-// Global variables
+﻿// Global variables
 let scene, camera, renderer, controls;
 let nodes = {};
 let connections = [];
@@ -54,21 +54,6 @@ const networkData = {
 
 // Initialize the scene
 function init() {
-    // Check if user is authenticated
-    if (!Auth.isAuthenticated()) {
-        window.location.href = 'login.html';
-        return;
-    }
-    
-    // Get username from token (in a real app, you would decode the JWT)
-    const username = localStorage.getItem('username') || 'User';
-    document.getElementById('username').textContent = username;
-    
-    // Set up logout button
-    document.getElementById('logout-btn').addEventListener('click', () => {
-        Auth.logout();
-    });
-    
     // Create scene
     scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x0a0a12, 10, 50);
@@ -132,13 +117,9 @@ function init() {
     initThreatTimeline();
 }
 
-// Connect to WebSocket with authentication
+// Connect to WebSocket
 function connectWebSocket() {
-    ws = Auth.createWebSocketWithAuth();
-    
-    if (!ws) {
-        return;
-    }
+    ws = new WebSocket('ws://localhost:8765/ws');
     
     ws.onopen = () => {
         console.log('WebSocket connected');
@@ -156,13 +137,7 @@ function connectWebSocket() {
     
     ws.onclose = (event) => {
         console.log('WebSocket disconnected:', event.code, event.reason);
-        
-        // If not due to authentication error, try to reconnect
-        if (event.code !== 1008) {
-            setTimeout(() => {
-                connectWebSocket();
-            }, 3000);
-        }
+        setTimeout(connectWebSocket, 3000);
     };
     
     ws.onerror = (error) => {
@@ -207,7 +182,7 @@ function handleStatsUpdate(data) {
 // Fetch alerts from API
 async function fetchAlerts() {
     try {
-        const response = await Auth.fetchWithAuth('http://localhost:8765/api/alerts');
+        const response = await fetch('http://localhost:8765/api/alerts');
         const data = await response.json();
         
         if (response.ok) {
@@ -222,7 +197,7 @@ async function fetchAlerts() {
 // Fetch blocklist from API
 async function fetchBlocklist() {
     try {
-        const response = await Auth.fetchWithAuth('http://localhost:8765/api/blocklist');
+        const response = await fetch('http://localhost:8765/api/blocklist');
         const data = await response.json();
         
         if (response.ok) {
@@ -236,7 +211,7 @@ async function fetchBlocklist() {
 // Block IP via API
 async function blockIP(ip, reason) {
     try {
-        const response = await Auth.fetchWithAuth('http://localhost:8765/api/block-ip', {
+        const response = await fetch('http://localhost:8765/api/block-ip', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

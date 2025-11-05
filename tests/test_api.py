@@ -1,24 +1,12 @@
 import pytest
 import os
 import sys
-from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch
 
 # Add the backend directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
 from app.main import app
-from app.auth.security import create_access_token
-
-@pytest.fixture
-def client():
-    """Create a test client."""
-    return TestClient(app)
-
-@pytest.fixture
-def auth_token():
-    """Create a valid authentication token."""
-    return create_access_token(data={"sub": "testuser"})
 
 def test_health_check(client):
     """Test health check endpoint."""

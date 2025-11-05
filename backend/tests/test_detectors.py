@@ -1,6 +1,6 @@
-import pytest
+﻿import pytest
 from app.detectors.rule_based import RuleBasedDetector
-from app.detectors.dos_detector import DoSDetector
+from app.detectors.ddos_detector import DoSDetector
 
 class TestRuleBasedDetector:
     def setup_method(self):

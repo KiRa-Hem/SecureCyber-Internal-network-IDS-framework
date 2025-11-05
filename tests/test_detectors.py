@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 import numpy as np
 import pandas as pd
 import os
@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 from app.detectors.rule_based import RuleBasedDetector
 from app.detectors.random_forest import RandomForestDetector
 from app.detectors.dnn import DNNDetector
-from app.detectors.dos_detector import DoSDetector
+from app.detectors.ddos_detector import DoSDetector
 
 @pytest.fixture
 def sample_packet():
