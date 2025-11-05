@@ -1,0 +1,31 @@
+# Server settings
+server:
+  host: "0.0.0.0"
+  port: 8765
+  debug: false
+
+# Database
+database:
+  url: "sqlite:///./data/ids.db"
+
+# WebSocket
+websocket:
+  path: "/ws"
+
+# Detection settings
+detection:
+  ddos:
+    threshold: 100  # requests per second
+    window_seconds: 10
+  correlation:
+    window_seconds: 30
+
+# Mitigation
+mitigation:
+  blocklist_ttl_seconds: 3600  # 1 hour
+
+# Sensors
+sensors:
+  locations:
+    - "edge"
+    - "internal"
