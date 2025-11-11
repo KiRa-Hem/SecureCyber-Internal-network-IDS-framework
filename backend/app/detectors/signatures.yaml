@@ -1,0 +1,61 @@
+- id: sqli-basic
+  name: SQL Injection
+  description: Detects SQL keywords and boolean bypass operators in HTTP payloads.
+  severity: high
+  tags: [web, injection]
+  protocol: tcp
+  dst_ports: [80, 443, 8080]
+  payload_patterns:
+    - "(?i)\\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER)\\b"
+    - "(?i)\\bOR\\s+1=1\\b"
+    - "(?i)(['\"]\\s*or\\s*['\"])"
+    - "(?i)--"
+
+- id: xss-basic
+  name: Cross-Site Scripting
+  description: Detects script tags or javascript URIs commonly used in reflected XSS.
+  severity: medium
+  tags: [web, injection]
+  protocol: tcp
+  dst_ports: [80, 443, 8080]
+  payload_patterns:
+    - "(?i)<script[^>]*>.*?</script>"
+    - "(?i)on\\w+\\s*="
+    - "(?i)javascript:"
+
+- id: cmd-injection
+  name: Command Injection
+  description: Detects shell metacharacters combined with dangerous system utilities.
+  severity: high
+  tags: [system, execution]
+  payload_patterns:
+    - "(?i)[;&|]+\\s*(?:cat|ls|bash|sh|powershell|whoami|wget|curl)\\b"
+    - "(?i);\\s*rm\\s+-rf"
+
+- id: log4shell
+  name: Log4Shell Exploit
+  description: Detects JNDI lookup payloads indicative of CVE-2021-44228.
+  severity: critical
+  tags: [java, rce]
+  payload_patterns:
+    - "(?i)\\$\\{jndi:(?:ldap|rmi|dns|http)[^}]+\\}"
+
+- id: path-traversal
+  name: Path Traversal
+  description: Detects attempts to escape the web-root via directory traversal strings.
+  severity: medium
+  tags: [filesystem]
+  payload_patterns:
+    - "\\.\\./\\.\\./"
+    - "(?i)etc/passwd"
+    - "(?i)windows[/\\\\]system32"
+
+- id: ftp-bruteforce
+  name: FTP Brute Force Signature
+  description: Flags repeated FTP login attempts flagged by upstream telemetry.
+  severity: medium
+  tags: [bruteforce]
+  field_equals:
+    service: ftp
+  metadata:
+    category: bruteforce

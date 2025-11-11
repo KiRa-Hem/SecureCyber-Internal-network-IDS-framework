@@ -21,3 +21,4 @@ httpx==0.25.0
 cryptography==46.0.1
 matplotlib>=3.7.0
 seaborn>=0.11.0
+PyYAML>=6.0.1

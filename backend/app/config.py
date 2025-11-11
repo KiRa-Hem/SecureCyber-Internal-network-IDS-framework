@@ -33,11 +33,13 @@ class Settings(BaseSettings):
     CONFIDENCE_THRESHOLD: float = 0.7
     MODEL_PATH: str = 'models/'
     RETRAIN_THRESHOLD: int = 100
+    CORRELATION_WINDOW_SECONDS: int = 300
     
     # Mitigation settings
     ENABLE_REAL_MITIGATION: bool = False
     MITIGATION_CONFIRMATION_TOKEN: Optional[str] = None
     BLOCK_DURATION: int = 300
+    BLOCKLIST_TTL_SECONDS: int = 3600
     
     # Sensor settings
     SENSOR_LOCATIONS: List[str] = ['edge', 'internal']
@@ -60,6 +62,42 @@ class Settings(BaseSettings):
             f'mongodb+srv://{self.MONGO_USER}:{self.MONGO_PASSWORD}@{self.MONGO_CLUSTER}/{self.MONGO_DB}'
             '?retryWrites=true&w=majority'
         )
+    
+    @property
+    def enable_redis(self) -> bool:
+        return self.ENABLE_REDIS
+    
+    @property
+    def enable_packet_capture(self) -> bool:
+        return self.ENABLE_PACKET_CAPTURE
+    
+    @property
+    def network_interface(self) -> str:
+        return self.NETWORK_INTERFACE
+    
+    @property
+    def capture_filter(self) -> str:
+        return self.CAPTURE_FILTER
+    
+    @property
+    def sensor_locations(self) -> List[str]:
+        return self.SENSOR_LOCATIONS
+    
+    @property
+    def enable_real_mitigation(self) -> bool:
+        return self.ENABLE_REAL_MITIGATION
+    
+    @property
+    def mitigation_confirmation_token(self) -> Optional[str]:
+        return self.MITIGATION_CONFIRMATION_TOKEN
+    
+    @property
+    def blocklist_ttl_seconds(self) -> int:
+        return self.BLOCKLIST_TTL_SECONDS
+    
+    @property
+    def correlation_window_seconds(self) -> int:
+        return self.CORRELATION_WINDOW_SECONDS
     
     class Config:
         env_file = '.env'

@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
@@ -24,6 +24,7 @@ from app.detectors.rule_based import RuleBasedDetector
 from app.detectors.random_forest import RandomForestDetector
 from app.detectors.dnn import DNNDetector
 from app.detectors.ddos_detector import DoSDetector
+from prometheus_client import generate_latest
 
 # Initialize database
 init_db()
@@ -288,8 +289,8 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.get("/metrics")
 async def metrics():
     """Prometheus metrics endpoint."""
-    from prometheus_client import generate_latest
-    return generate_latest()
+    data = generate_latest()
+    return Response(content=data, media_type="text/plain; version=0.0.4")
 
 async def periodic_stats_update():
     """Periodically send stats updates to all connected clients."""
