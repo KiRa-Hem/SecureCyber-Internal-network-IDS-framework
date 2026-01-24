@@ -3,190 +3,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SecureCyber IDS</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Roboto+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <title>SecureCyber IDS Dashboard</title>
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Roboto+Mono:wght@300;400&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="screen-effects">
-        <div class="scanlines"></div>
-        <div class="grain"></div>
-        <div class="vignette"></div>
-    </div>
-
-    <div class="dashboard">
-        <header class="top-bar">
-            <div class="brand">
-                <h1 class="brand__title">Secure<span class="brand__accent">Cyber</span> IDS</h1>
-                <div class="system-status">
-                    <span class="status-led status-led--online"></span>
-                    <span class="status-text">Systems Online</span>
-                </div>
+    <div class="scanlines"></div>
+    <div class="grain"></div>
+    
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="logo">
+                <h1>Secure<span class="neon-text">Cyber</span> IDS</h1>
+                <div class="status-indicator online"></div>
+                <span class="status-text">SYSTEMS ONLINE</span>
             </div>
-            <div class="top-bar__meta">
-                <div class="meta-item">
-                    <span class="meta-label">Last Sync</span>
-                    <span class="meta-value" id="last-sync">--:--:--</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label">Sensors</span>
-                    <span class="meta-value" id="sensor-count">0</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label">UTC</span>
-                    <span class="meta-value" id="clock">-- -- --</span>
-                </div>
+            <div class="header-actions">
+                <div class="datetime" id="datetime"></div>
             </div>
         </header>
-
-        <main class="workspace">
-            <section class="stack stack--left">
-                <article class="panel panel--status">
-                    <header class="panel__header">
-                        <h2 class="panel__title">Network Status</h2>
-                        <div class="panel__controls">
-                            <button class="btn-icon" id="btn-pause" title="Pause simulation">
-                                <span>II</span>
+        
+        <!-- Main Content -->
+        <div class="dashboard-content">
+            <!-- Left Panel -->
+            <div class="left-panel">
+                <!-- Network Status Panel -->
+                <div class="panel status-panel">
+                    <div class="panel-header">
+                        <h2>NETWORK STATUS</h2>
+                        <div class="panel-controls">
+                            <button class="control-btn" id="pause-btn" title="Pause/Resume">
+                                <span class="icon">||</span>
                             </button>
-                            <button class="btn-icon" id="btn-step" title="Step simulation">
-                                <span>&gt;</span>
+                            <button class="control-btn" id="step-btn" title="Step Event">
+                                <span class="icon">></span>
                             </button>
                         </div>
-                    </header>
-                    <div class="status-summary">
-                        <div class="status-card">
-                            <span class="status-card__label">Total Packets</span>
-                            <span class="status-card__value" id="stat-packets">0</span>
+                    </div>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-label">Total Packets</div>
+                            <div class="status-value" id="total-packets">0</div>
                         </div>
-                        <div class="status-card">
-                            <span class="status-card__label">Threats Blocked</span>
-                            <span class="status-card__value" id="stat-blocked">0</span>
+                        <div class="status-item">
+                            <div class="status-label">Threats Blocked</div>
+                            <div class="status-value" id="threats-blocked">0</div>
                         </div>
-                        <div class="status-card">
-                            <span class="status-card__label">Active Hosts</span>
-                            <span class="status-card__value" id="stat-hosts">0</span>
+                        <div class="status-item">
+                            <div class="status-label">Active Hosts</div>
+                            <div class="status-value" id="active-hosts">0</div>
                         </div>
-                        <div class="status-card">
-                            <span class="status-card__label">Attack Rate</span>
-                            <span class="status-card__value" id="stat-attack-rate">0/min</span>
+                        <div class="status-item">
+                            <div class="status-label">Attack Rate</div>
+                            <div class="status-value" id="attack-rate">0/min</div>
                         </div>
                     </div>
-                    <div class="status-chart">
-                        <canvas id="threat-timeline" width="320" height="80"></canvas>
+                    <div class="threat-timeline">
+                        <canvas id="threat-timeline" width="300" height="60"></canvas>
                     </div>
-                </article>
-
-                <article class="panel panel--alerts">
-                    <header class="panel__header">
-                        <h2 class="panel__title">Live Alerts</h2>
-                        <div class="alert-indicator">
-                            <span class="badge" id="alert-count">0</span>
+                </div>
+                
+                <!-- Alerts Panel -->
+                <div class="panel alerts-panel">
+                    <div class="panel-header">
+                        <h2>LIVE ALERTS</h2>
+                        <div class="alert-count" id="alert-count">0</div>
+                    </div>
+                    <div class="alerts-container" id="alerts-container">
+                        <!-- Alerts will be dynamically added here -->
+                    </div>
+                </div>
+                
+                <!-- Packet Inspector Panel -->
+                <div class="panel inspector-panel">
+                    <div class="panel-header">
+                        <h2>PACKET INSPECTOR</h2>
+                        <div class="inspector-status" id="inspector-status">No packet selected</div>
+                    </div>
+                    <div class="inspector-content" id="inspector-content">
+                        <div class="empty-state">Select an alert to inspect packet details</div>
+                    </div>
+                </div>
+                
+                <!-- Node Details Panel -->
+                <div class="panel node-details-panel">
+                    <div class="panel-header">
+                        <h2>NODE INSPECTOR</h2>
+                        <button class="close-btn" id="close-node-details">x</button>
+                    </div>
+                    <div class="node-details-content" id="node-details-content">
+                        <div class="empty-state">Click a node to view details</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Panel - 3D Network Visualization -->
+            <div class="right-panel">
+                <div class="panel network-panel">
+                    <div class="panel-header">
+                        <h2>NETWORK TOPOLOGY</h2>
+                        <div class="network-controls">
+                            <button class="control-btn" id="toggle-packets" title="Toggle Packet Trails">
+                                <span class="icon">net</span>
+                            </button>
                         </div>
-                    </header>
-                    <div class="panel__body">
-                        <ul class="alert-feed" id="alert-feed"></ul>
-                        <div class="empty-state" id="alerts-empty">No active alerts</div>
                     </div>
-                </article>
-
-                <article class="panel panel--inspector">
-                    <header class="panel__header">
-                        <h2 class="panel__title">Packet Inspector</h2>
-                        <span class="panel__subtitle" id="inspector-state">Select an alert to inspect</span>
-                    </header>
-                    <div class="panel__body" id="inspector-body">
-                        <dl class="inspection-grid">
-                            <div><dt>Source IP</dt><dd id="inspect-source">-</dd></div>
-                            <div><dt>Target IP</dt><dd id="inspect-target">-</dd></div>
-                            <div><dt>Attack Type</dt><dd id="inspect-attack">-</dd></div>
-                            <div><dt>Flags</dt><dd id="inspect-flags">-</dd></div>
-                            <div><dt>Confidence</dt><dd id="inspect-confidence">-</dd></div>
-                            <div><dt>Action</dt><dd id="inspect-action">-</dd></div>
-                            <div class="wide"><dt>Payload Snippet</dt><dd id="inspect-payload">-</dd></div>
-                        </dl>
+                    <div class="network-viewport" id="network-viewport">
+                        <!-- Three.js canvas will be inserted here -->
                     </div>
-                </article>
-
-                <article class="panel panel--node">
-                    <header class="panel__header">
-                        <h2 class="panel__title">Node Inspector</h2>
-                        <button class="btn-text" id="btn-close-node">Clear</button>
-                    </header>
-                    <div class="panel__body" id="node-body">
-                        <dl class="inspection-grid">
-                            <div><dt>Name</dt><dd id="node-name">-</dd></div>
-                            <div><dt>Type</dt><dd id="node-type">-</dd></div>
-                            <div><dt>IP Address</dt><dd id="node-ip">-</dd></div>
-                            <div><dt>Status</dt><dd id="node-status">-</dd></div>
-                            <div><dt>Data</dt><dd id="node-data">-</dd></div>
-                            <div><dt>Last Seen</dt><dd id="node-last-seen">-</dd></div>
-                        </dl>
-                    </div>
-                </article>
-            </section>
-
-            <section class="panel panel--network">
-                <header class="panel__header">
-                    <h2 class="panel__title">Network Topology</h2>
-                    <div class="panel__controls">
-                        <div class="control-group">
-                            <label for="speed-slider">Speed</label>
-                            <input type="range" id="speed-slider" min="0.5" max="3" step="0.5" value="1">
+                    <div class="network-legend">
+                        <div class="legend-item">
+                            <div class="legend-icon router"></div>
+                            <span>Router</span>
                         </div>
-                        <button class="btn-icon" id="btn-toggle-trails" title="Toggle packet trails">
-                            <span>TR</span>
-                        </button>
+                        <div class="legend-item">
+                            <div class="legend-icon firewall"></div>
+                            <span>Firewall</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-icon server"></div>
+                            <span>Server</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-icon storage"></div>
+                            <span>Storage</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-icon wap"></div>
+                            <span>WAP</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-icon host"></div>
+                            <span>Host</span>
+                        </div>
                     </div>
-                </header>
-                <div class="network-stage" id="network-stage"></div>
-                <footer class="panel__footer">
-                    <ul class="legend">
-                        <li><span class="legend-swatch legend-swatch--router"></span>Router</li>
-                        <li><span class="legend-swatch legend-swatch--firewall"></span>Firewall</li>
-                        <li><span class="legend-swatch legend-swatch--server"></span>Server</li>
-                        <li><span class="legend-swatch legend-swatch--storage"></span>Storage</li>
-                        <li><span class="legend-swatch legend-swatch--wap"></span>WAP</li>
-                        <li><span class="legend-swatch legend-swatch--host"></span>Host</li>
-                    </ul>
-                </footer>
-            </section>
-        </main>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Alert Modal -->
+        <div class="alert-modal" id="alert-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>SECURITY ALERT</h2>
+                    <button class="close-btn" id="close-modal">x</button>
+                </div>
+                <div class="modal-body" id="modal-body">
+                    <!-- Alert details will be inserted here -->
+                </div>
+            </div>
+        </div>
     </div>
 
-    <aside class="modal" id="alert-modal" aria-hidden="true">
-        <div class="modal__window">
-            <header class="modal__header">
-                <h3 class="modal__title">Security Alert</h3>
-                <button class="btn-icon" id="btn-close-modal" aria-label="Close alert dialog">
-                    <span>X</span>
-                </button>
-            </header>
-            <div class="modal__body" id="modal-body">
-                <section class="modal-section">
-                    <h4>Threat Summary</h4>
-                    <dl class="modal-grid" id="modal-summary"></dl>
-                </section>
-                <section class="modal-section" id="modal-vuln-section">
-                    <h4>Vulnerability Details</h4>
-                    <dl class="modal-grid" id="modal-vuln"></dl>
-                </section>
-                <section class="modal-section">
-                    <h4>Packet Analysis</h4>
-                    <dl class="modal-grid" id="modal-packet"></dl>
-                </section>
-            </div>
-            <footer class="modal__footer">
-                <button class="btn-action btn-action--danger" id="btn-block-source">Block Source IP</button>
-                <button class="btn-action btn-action--warning" id="btn-isolate-target">Isolate Target</button>
-                <button class="btn-action btn-action--primary" id="btn-add-watch">Add to Watchlist</button>
-                <button class="btn-action btn-action--muted" id="btn-false-positive">False Positive</button>
-            </footer>
-        </div>
-    </aside>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js" integrity="sha512-jS6tsQLln0i1csYbxX8LWOArLPbIZ9I9MS+qVtl5XtbgJYUfKDEtmi1QEux1SUj9HgpkSG03EMh4KQWJ7cs3eg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="script.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

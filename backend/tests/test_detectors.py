@@ -33,7 +33,7 @@ class TestRuleBasedDetector:
         alert = self.detector.detect(packet_data)
         
         assert alert is not None
-        assert "XSS" in alert["attacks"]
+        assert "Cross-Site Scripting" in alert["attacks"]
         assert alert["confidence"] >= 80
     
     def test_legitimate_traffic(self):

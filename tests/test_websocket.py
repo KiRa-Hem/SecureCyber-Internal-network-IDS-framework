@@ -19,8 +19,8 @@ def client():
 
 
 def test_websocket_connection(client):
-    """Verify the WebSocket endpoint accepts connections without authentication."""
-    with client.websocket_connect("/ws") as websocket:
+    """Verify the WebSocket endpoint accepts authenticated connections."""
+    with client.websocket_connect("/ws?token=test-token") as websocket:
         websocket.send_text("ping")
 
 

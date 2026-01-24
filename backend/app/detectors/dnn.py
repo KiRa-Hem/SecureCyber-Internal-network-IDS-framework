@@ -1,15 +1,20 @@
+import logging
 import os
+from pathlib import Path
+from typing import List, Dict, Any, Optional
+
+import joblib
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-import pandas as pd
-from typing import List, Dict, Any, Optional
-from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
-import logging
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 from app.config import settings
+
+MODELS_DIR = Path(settings.model_path)
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +45,11 @@ class DNN(nn.Module):
 
 class DNNDetector:
     def __init__(self, model_path: str = None):
-        self.model_path = model_path or os.path.join("models", "attack_classifier_dnn.pth")
+        default_path = MODELS_DIR / "attack_classifier_dnn.pth"
+        self.model_path = Path(model_path) if model_path else default_path
         self.model = None
-        self.scaler = StandardScaler()
-        self.label_encoders = {}
+        self.scaler: StandardScaler | None = None
+        self.label_encoders: Dict[str, LabelEncoder] = {}
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.feature_names = [
             'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes',
@@ -60,28 +66,52 @@ class DNNDetector:
             'dst_host_rerror_rate', 'dst_host_srv_rerror_rate'
         ]
         self.categorical_features = ['protocol_type', 'service', 'flag']
+        self.training_columns = list(self.feature_names)
+        self.input_size = len(self.feature_names)
+        self.category_encoder = None
+        self.num_classes = 2
         
+        self._load_label_encoder()
         self._load_model()
+    def _load_label_encoder(self):
+        encoder_path = MODELS_DIR / "le_category.pkl"
+        if not encoder_path.exists():
+            logger.warning("Category label encoder not found at %s; defaulting to binary output", encoder_path)
+            return
+        try:
+            self.category_encoder = joblib.load(encoder_path)
+            if hasattr(self.category_encoder, "classes_"):
+                self.num_classes = len(self.category_encoder.classes_)
+                logger.info("Loaded category label encoder (%d classes)", self.num_classes)
+        except Exception as exc:
+            logger.warning("Failed to load category encoder (%s); defaulting to binary output", exc)
+            self.category_encoder = None
+
     
     def _load_model(self):
         """Load the trained model."""
         try:
-            if os.path.exists(self.model_path):
-                self.model = DNN(len(self.feature_names), [128, 64, 32], 2)
+            if self.model_path.exists():
+                self.model = DNN(self.input_size, [128, 64, 32], self.num_classes)
                 self.model.load_state_dict(torch.load(self.model_path, map_location=self.device))
                 self.model.eval()
                 logger.info(f"DNN model loaded from {self.model_path}")
                 
                 # Load preprocessing objects
-                scaler_path = self.model_path.replace('.pth', '_scaler.pkl')
+                scaler_path = self.model_path.with_name(self.model_path.stem + "_scaler.pkl")
                 if os.path.exists(scaler_path):
                     import joblib
                     self.scaler = joblib.load(scaler_path)
+                else:
+                    self.scaler = None
+                    logger.warning("DNN scaler not found; using raw values")
                 
-                encoders_path = self.model_path.replace('.pth', '_encoders.pkl')
+                encoders_path = self.model_path.with_name(self.model_path.stem + "_encoders.pkl")
                 if os.path.exists(encoders_path):
                     import joblib
                     self.label_encoders = joblib.load(encoders_path)
+                else:
+                    self.label_encoders = {}
             else:
                 logger.warning(f"Model file not found at {self.model_path}")
                 self.model = None
@@ -152,27 +182,52 @@ class DNNDetector:
     def _preprocess_features(self, X: pd.DataFrame, fit: bool = False) -> np.ndarray:
         """Preprocess features for model input."""
         X_processed = X.copy()
-        
+
+        # Ensure numeric fields are numeric
+        numerical_features = [f for f in self.feature_names if f not in self.categorical_features]
+        if numerical_features:
+            try:
+                X_processed[numerical_features] = (
+                    X_processed[numerical_features]
+                    .apply(pd.to_numeric, errors="coerce")
+                    .fillna(0.0)
+                    .astype(float)
+                )
+            except Exception as exc:
+                logger.warning("Failed to coerce numeric DNN features (%s); filling with 0", exc)
+                X_processed[numerical_features] = (
+                    X_processed[numerical_features].apply(pd.to_numeric, errors="coerce").fillna(0.0).astype(float)
+                )
+
         # Handle categorical features
         for feature in self.categorical_features:
             if feature in X_processed.columns:
                 if fit:
                     if feature not in self.label_encoders:
                         self.label_encoders[feature] = LabelEncoder()
-                    X_processed[feature] = self.label_encoders[feature].fit_transform(X_processed[feature])
+                    X_processed[feature] = self.label_encoders[feature].fit_transform(X_processed[feature].astype(str))
                 else:
                     if feature in self.label_encoders:
-                        X_processed[feature] = self.label_encoders[feature].transform(X_processed[feature])
+                        mapping = {cls: idx for idx, cls in enumerate(self.label_encoders[feature].classes_)}
+                        X_processed[feature] = (
+                            X_processed[feature].astype(str).map(mapping).fillna(0).astype(int)
+                        )
                     else:
-                        # Handle unknown categories
                         X_processed[feature] = 0
-        
+
         # Scale numerical features
         numerical_features = [f for f in self.feature_names if f not in self.categorical_features]
-        if fit:
-            X_processed[numerical_features] = self.scaler.fit_transform(X_processed[numerical_features])
-        else:
-            X_processed[numerical_features] = self.scaler.transform(X_processed[numerical_features])
+        if self.scaler:
+            if fit:
+                X_processed[numerical_features] = self.scaler.fit_transform(X_processed[numerical_features])
+            else:
+                try:
+                    X_processed[numerical_features] = self.scaler.transform(X_processed[numerical_features])
+                except Exception as exc:
+                    logger.warning(f"DNN scaler transform failed ({exc}); using raw values")
+                    self.scaler = None
+        if not self.scaler:
+            X_processed[numerical_features] = X_processed[numerical_features].fillna(0)
         
         # Ensure all features are present
         for feature in self.feature_names:

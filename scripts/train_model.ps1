@@ -48,18 +48,21 @@ $env:PYTHONPATH = "$PWD\backend;$env:PYTHONPATH"
 # Change to training scripts directory
 Set-Location models\training_scripts
 
-# Download dataset
-Write-ColorOutput $BLUE "Downloading KDD dataset..."
-python download_kdd.py
-if ($LASTEXITCODE -ne 0) {
-    Write-ColorOutput $RED "Error: Failed to download dataset."
+# Ensure dataset already exists (raw data should be downloaded beforehand)
+$datasetPath = Join-Path $PWD "data\kddcup.data_10_percent"
+if (-not (Test-Path $datasetPath)) {
+    Write-ColorOutput $RED "Error: Dataset not found at $datasetPath."
+    Write-ColorOutput $YELLOW "Please place the raw KDD data in models\training_scripts\data before running this script."
     Set-Location ..\..
     Read-Host "Press Enter to exit"
     exit 1
 }
+else {
+    Write-ColorOutput $GREEN "Found dataset at $datasetPath"
+}
 
 if ($DownloadOnly) {
-    Write-ColorOutput $GREEN "Dataset downloaded successfully."
+    Write-ColorOutput $GREEN "Download-only flag set; dataset presence verified."
     Set-Location ..\..
     Read-Host "Press Enter to exit"
     exit 0

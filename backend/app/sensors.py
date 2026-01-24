@@ -3,6 +3,7 @@ import json
 import random
 import time
 import logging
+import numbers
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
@@ -11,6 +12,7 @@ from app.detectors.rule_based import RuleBasedDetector
 from app.detectors.ddos_detector import DoSDetector
 from app.detectors.random_forest import RandomForestDetector
 from app.detectors.dnn import DNNDetector
+from app.features import FeatureExtractor
 from app.correlator import correlator
 from app.mitigation import mitigation
 from app.cache import cache_manager
@@ -32,6 +34,7 @@ class SensorWorker:
             'alerts_generated': 0,
             'start_time': time.time()
         }
+        self.feature_extractor = FeatureExtractor()
     
     async def start(self):
         """Start the sensor worker."""
@@ -50,8 +53,8 @@ class SensorWorker:
         # Run main loop
         while self.running:
             try:
-                # Simulate some traffic if packet capture is not enabled
-                if not self.packet_capture:
+                # Simulate traffic only when explicitly enabled
+                if not self.packet_capture and settings.enable_simulation:
                     await self._simulate_traffic()
                 
                 # Send periodic stats update
@@ -97,9 +100,12 @@ class SensorWorker:
                 if dos_alert:
                     alerts.append(dos_alert)
             
+            features = self.feature_extractor.extract(packet_info)
+
             # RandomForest detection
-            if 'random_forest' in self.detectors:
-                rf_result = self.detectors['random_forest'].predict(packet_info)
+            rf_detector = self.detectors.get('random_forest')
+            if rf_detector and getattr(rf_detector, "model", None) is not None:
+                rf_result = rf_detector.predict(features)
                 if rf_result and rf_result['prediction'] == 1:
                     rf_alert = {
                         'id': f"rf-{int(time.time())}",
@@ -122,8 +128,9 @@ class SensorWorker:
                     metrics_collector.record_prediction('random_forest', 'normal')
             
             # DNN detection
-            if 'dnn' in self.detectors:
-                dnn_result = self.detectors['dnn'].predict(packet_info)
+            dnn_detector = self.detectors.get('dnn')
+            if dnn_detector and getattr(dnn_detector, "model", None) is not None:
+                dnn_result = dnn_detector.predict(features)
                 if dnn_result and dnn_result['prediction'] == 1:
                     dnn_alert = {
                         'id': f"dnn-{int(time.time())}",
@@ -158,39 +165,43 @@ class SensorWorker:
     
     def _process_alert(self, alert: Dict[str, Any]):
         """Process a detected alert."""
+        queue: List[Dict[str, Any]] = [alert]
         try:
-            # Apply mitigation if needed
-            mitigation_action = alert.get('mitigation', {}).get('action', 'flagged')
-            if mitigation_action == 'block' and 'source_ip' in alert:
-                mitigation.block_ip(
-                    alert['source_ip'], 
-                    f"Automatic block by {self.location} sensor",
-                    300  # 5 minutes
+            while queue:
+                current = queue.pop(0)
+                sanitized = self._sanitize_for_storage(current)
+
+                mitigation_action = sanitized.get('mitigation', {}).get('action', 'flagged')
+                if mitigation_action == 'block' and 'source_ip' in sanitized:
+                    mitigation.block_ip(
+                        sanitized['source_ip'],
+                        f"Automatic block by {self.location} sensor",
+                        300  # 5 minutes
+                    )
+                    metrics_collector.record_mitigation('block')
+
+                db.store_alert(sanitized)
+
+                self.stats['alerts_generated'] += 1
+                metrics_collector.record_alert(sanitized.get('attack_types', ['unknown'])[0])
+
+                recent_alerts = cache_manager.get('recent_alerts') or []
+                recent_alerts.insert(0, sanitized)
+                if len(recent_alerts) > 100:
+                    recent_alerts.pop()
+                cache_manager.set('recent_alerts', recent_alerts, 300)
+
+                is_correlated_event = (
+                    str(sanitized.get("id", "")).startswith("corr-")
+                    or bool(sanitized.get("correlated_events"))
                 )
-                metrics_collector.record_mitigation('block')
-            
-            # Store in database
-            db.store_alert(alert)
-            
-            # Update alert count
-            self.stats['alerts_generated'] += 1
-            metrics_collector.record_alert(alert.get('attack_types', ['unknown'])[0])
-            
-            # Cache recent alerts
-            recent_alerts = cache_manager.get('recent_alerts') or []
-            recent_alerts.insert(0, alert)
-            if len(recent_alerts) > 100:  # Keep last 100 alerts
-                recent_alerts.pop()
-            cache_manager.set('recent_alerts', recent_alerts, 300)  # Cache for 5 minutes
-            
-            # Correlate with other alerts
-            correlated_alert = correlator.add_event(alert)
-            if correlated_alert:
-                self._process_alert(correlated_alert)
-            
-            # Broadcast to WebSocket clients
-            asyncio.create_task(self.manager.broadcast_alert(alert))
-            
+                if not is_correlated_event:
+                    correlated_alert = correlator.add_event(sanitized)
+                    if correlated_alert:
+                        queue.append(correlated_alert)
+
+                asyncio.create_task(self.manager.broadcast_alert(sanitized))
+
         except Exception as e:
             logger.error(f"Error processing alert: {e}")
     
@@ -250,3 +261,21 @@ class SensorWorker:
         }
         
         await self.manager.broadcast_stats(stats)
+
+    def _sanitize_for_storage(self, data: Any) -> Any:
+        """Clamp integers to Mongo-safe range and convert numpy types."""
+        max_int = 2**63 - 1
+        min_int = -2**63
+
+        if isinstance(data, dict):
+            return {key: self._sanitize_for_storage(value) for key, value in data.items()}
+        if isinstance(data, list):
+            return [self._sanitize_for_storage(value) for value in data]
+        if isinstance(data, numbers.Integral):
+            value = int(data)
+            if value > max_int:
+                return max_int
+            if value < min_int:
+                return min_int
+            return value
+        return data

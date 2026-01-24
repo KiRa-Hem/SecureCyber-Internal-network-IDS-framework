@@ -12,14 +12,8 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
-
-try:
-    from scipy import sparse
-except ImportError:  # pragma: no cover - scipy should be present with sklearn, but guard anyway.
-    sparse = None
+from sklearn.preprocessing import LabelEncoder
 
 # Repository paths
 BASE_DIR = Path(__file__).parent
@@ -136,13 +130,6 @@ def normalize_column_name(name: str) -> str:
     return normalized
 
 
-def ensure_dense(matrix):
-    """Convert scipy sparse matrices to dense numpy arrays when needed."""
-    if sparse is not None and sparse.issparse(matrix):
-        return matrix.toarray()
-    return matrix
-
-
 def save_artifacts(
     output_dir: Path,
     X_train,
@@ -151,24 +138,19 @@ def save_artifacts(
     y_binary_test,
     y_category_train,
     y_category_test,
-    preprocessor,
     le_binary,
     le_category,
 ):
-    """Persist numpy arrays and encoders."""
+    """Persist raw feature frames and encoders."""
     output_dir.mkdir(exist_ok=True)
-    X_train = ensure_dense(X_train)
-    X_test = ensure_dense(X_test)
     print(f"Saving preprocessed artifacts to {output_dir} ...")
-    np.save(output_dir / "X_train.npy", X_train)
-    np.save(output_dir / "X_test.npy", X_test)
+    X_train.to_pickle(output_dir / "X_train.pkl")
+    X_test.to_pickle(output_dir / "X_test.pkl")
     np.save(output_dir / "y_binary_train.npy", y_binary_train)
     np.save(output_dir / "y_binary_test.npy", y_binary_test)
     np.save(output_dir / "y_category_train.npy", y_category_train)
     np.save(output_dir / "y_category_test.npy", y_category_test)
 
-    with open(output_dir / "preprocessor.pkl", "wb") as f:
-        pickle.dump(preprocessor, f)
     with open(output_dir / "le_binary.pkl", "wb") as f:
         pickle.dump(le_binary, f)
     with open(output_dir / "le_category.pkl", "wb") as f:
@@ -285,13 +267,6 @@ def preprocess_kdd_data(df: pd.DataFrame, output_dir: Path, test_size: float):
     df = df.dropna(subset=numerical_features)
     print(f"Records after numerical cleanup: {len(df)}")
 
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ('num', StandardScaler(), numerical_features),
-            ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features)
-        ]
-    )
-
     X = df.drop(columns=['label', 'binary_label', 'attack_category'])
     y_binary = df['binary_label']
     y_category = df['attack_category']
@@ -300,10 +275,6 @@ def preprocess_kdd_data(df: pd.DataFrame, output_dir: Path, test_size: float):
     X_train, X_test, y_binary_train, y_binary_test, y_category_train, y_category_test = train_test_split(
         X, y_binary, y_category, test_size=test_size, random_state=42, stratify=stratify_target
     )
-
-    preprocessor.fit(X_train)
-    X_train_processed = preprocessor.transform(X_train)
-    X_test_processed = preprocessor.transform(X_test)
 
     le_binary = LabelEncoder()
     le_category = LabelEncoder()
@@ -314,13 +285,12 @@ def preprocess_kdd_data(df: pd.DataFrame, output_dir: Path, test_size: float):
 
     save_artifacts(
         output_dir,
-        X_train_processed,
-        X_test_processed,
+        X_train,
+        X_test,
         y_binary_train_encoded,
         y_binary_test_encoded,
         y_category_train_encoded,
         y_category_test_encoded,
-        preprocessor,
         le_binary,
         le_category,
     )
@@ -338,12 +308,6 @@ def preprocess_cic_data(df: pd.DataFrame, output_dir: Path, test_size: float):
     if not feature_columns:
         raise ValueError("No feature columns available after cleaning CICIDS dataset.")
 
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ('num', StandardScaler(), feature_columns),
-        ]
-    )
-
     X = df[feature_columns]
     y_binary = df['binary_label']
     y_category = df['attack_category']
@@ -352,10 +316,6 @@ def preprocess_cic_data(df: pd.DataFrame, output_dir: Path, test_size: float):
     X_train, X_test, y_binary_train, y_binary_test, y_category_train, y_category_test = train_test_split(
         X, y_binary, y_category, test_size=test_size, random_state=42, stratify=stratify_target
     )
-
-    preprocessor.fit(X_train)
-    X_train_processed = preprocessor.transform(X_train)
-    X_test_processed = preprocessor.transform(X_test)
 
     le_binary = LabelEncoder()
     le_category = LabelEncoder()
@@ -366,13 +326,12 @@ def preprocess_cic_data(df: pd.DataFrame, output_dir: Path, test_size: float):
 
     save_artifacts(
         output_dir,
-        X_train_processed,
-        X_test_processed,
+        X_train,
+        X_test,
         y_binary_train_encoded,
         y_binary_test_encoded,
         y_category_train_encoded,
         y_category_test_encoded,
-        preprocessor,
         le_binary,
         le_category,
     )

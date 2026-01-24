@@ -6,16 +6,29 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend/models:/app/models
+      - ./models:/models:ro
       - ./backend/data:/app/data
       - ./backend/logs:/app/logs
     environment:
       - DATABASE_URL=sqlite:///./data/ids.db
       - USE_MONGODB=false
+      - MONGODB_URI=mongodb://mongodb:27017/ids
+      - MONGO_DB=ids
+      - MONGO_USER=
+      - MONGO_PASSWORD=
+      - MONGO_CLUSTER=
       - ENABLE_REDIS=false
-      - ENABLE_PACKET_CAPTURE=false
+      - ENABLE_PACKET_CAPTURE=true
+      - MODEL_PATH=/models
+      - API_TOKEN=CHANGE_ME
+      - CORS_ORIGINS=["http://localhost","http://127.0.0.1","http://localhost:80","http://127.0.0.1:80","http://localhost:5173","http://127.0.0.1:5173"]
+      - CORS_ALLOW_CREDENTIALS=false
       - SECRET_KEY=your-secret-key-change-in-production
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
     depends_on:
+      - mongodb
       - redis
     restart: unless-stopped
 

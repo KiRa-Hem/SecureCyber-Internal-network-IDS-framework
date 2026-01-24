@@ -1,23 +1,29 @@
+import logging
 import os
+from pathlib import Path
+from typing import Dict, Any, Optional, List
+
 import joblib
 import numpy as np
 import pandas as pd
-from typing import List, Dict, Any, Optional
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
-import logging
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+MODELS_DIR = Path(settings.model_path)
+
+
 class RandomForestDetector:
     def __init__(self, model_path: str = None):
-        self.model_path = model_path or os.path.join("models", "attack_classifier_rf.pkl")
+        default_path = MODELS_DIR / "attack_classifier_rf.pkl"
+        self.model_path = Path(model_path) if model_path else default_path
         self.model = None
-        self.scaler = StandardScaler()
-        self.label_encoders = {}
+        self.scaler: StandardScaler | None = None
+        self.label_encoders: Dict[str, LabelEncoder] = {}
         self.feature_names = [
             'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes',
             'land', 'wrong_fragment', 'urgent', 'hot', 'num_failed_logins',
@@ -34,14 +40,32 @@ class RandomForestDetector:
         ]
         self.categorical_features = ['protocol_type', 'service', 'flag']
         
+        self.training_columns: List[str] = self.feature_names.copy()
         self._load_model()
     
     def _load_model(self):
         """Load the trained model."""
         try:
-            if os.path.exists(self.model_path):
+            if self.model_path.exists():
                 self.model = joblib.load(self.model_path)
                 logger.info(f"RandomForest model loaded from {self.model_path}")
+
+                scaler_path = self.model_path.with_name(self.model_path.stem + "_scaler.pkl")
+                enc_path = self.model_path.with_name(self.model_path.stem + "_encoders.pkl")
+
+                if scaler_path.exists():
+                    self.scaler = joblib.load(scaler_path)
+                    logger.info("Loaded RandomForest scaler")
+                else:
+                    self.scaler = None
+                    logger.warning("Scaler file not found; using raw numerical features")
+
+                if enc_path.exists():
+                    self.label_encoders = joblib.load(enc_path)
+                    logger.info("Loaded RandomForest label encoders")
+                else:
+                    self.label_encoders = {}
+
             else:
                 logger.warning(f"Model file not found at {self.model_path}")
                 self.model = None
@@ -98,29 +122,49 @@ class RandomForestDetector:
                 if fit:
                     if feature not in self.label_encoders:
                         self.label_encoders[feature] = LabelEncoder()
-                    X_processed[feature] = self.label_encoders[feature].fit_transform(X_processed[feature])
+                    X_processed[feature] = self.label_encoders[feature].fit_transform(X_processed[feature].astype(str))
                 else:
                     if feature in self.label_encoders:
-                        X_processed[feature] = self.label_encoders[feature].transform(X_processed[feature])
+                        encoder = self.label_encoders[feature]
+                        mapping = {cls: idx for idx, cls in enumerate(encoder.classes_)}
+                        X_processed[feature] = X_processed[feature].astype(str).map(mapping).fillna(0).astype(int)
                     else:
-                        # Handle unknown categories
                         X_processed[feature] = 0
         
         # Scale numerical features
         numerical_features = [f for f in self.feature_names if f not in self.categorical_features]
-        if fit:
-            X_processed[numerical_features] = self.scaler.fit_transform(X_processed[numerical_features])
-        else:
-            X_processed[numerical_features] = self.scaler.transform(X_processed[numerical_features])
-        
-        # Ensure all features are present
-        for feature in self.feature_names:
+        # Ensure numeric fields are clean floats to avoid dtype issues
+        if numerical_features:
+            try:
+                converted = (
+                    X_processed[numerical_features]
+                    .apply(pd.to_numeric, errors="coerce")
+                    .fillna(0.0)
+                )
+                X_processed[numerical_features] = converted.astype(float)
+            except Exception as exc:
+                logger.warning("Failed to coerce numeric features (%s); filling with 0", exc)
+                X_processed[numerical_features] = (
+                    X_processed[numerical_features].apply(pd.to_numeric, errors="coerce").fillna(0.0).astype(float)
+                )
+
+        if self.scaler:
+            if fit:
+                X_processed[numerical_features] = self.scaler.fit_transform(X_processed[numerical_features])
+            else:
+                try:
+                    X_processed[numerical_features] = self.scaler.transform(X_processed[numerical_features])
+                except Exception as exc:
+                    logger.warning(f"Scaler transform failed ({exc}); using raw values")
+                    self.scaler = None
+        if not self.scaler:
+            X_processed[numerical_features] = X_processed[numerical_features].fillna(0)
+
+        for feature in self.training_columns:
             if feature not in X_processed.columns:
                 X_processed[feature] = 0
-        
-        # Reorder columns to match training order
-        X_processed = X_processed[self.feature_names]
-        
+        X_processed = X_processed[self.training_columns]
+
         return X_processed.values
     
     def predict(self, packet_info: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -145,9 +189,12 @@ class RandomForestDetector:
             probabilities = self.model.predict_proba(X)[0]
             prediction = self.model.predict(X)[0]
             
-            # Get feature importance
-            feature_importance = dict(zip(self.feature_names, self.model.feature_importances_))
-            
+            importances = getattr(self.model, "feature_importances_", [])
+            if len(importances) == len(self.training_columns):
+                feature_importance = dict(zip(self.training_columns, importances))
+            else:
+                feature_importance = {}
+
             return {
                 'prediction': int(prediction),
                 'probabilities': {

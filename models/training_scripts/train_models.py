@@ -8,43 +8,55 @@ confusion matrices for quick inspection.
 """
 
 import argparse
+import json
 import pickle
 import random
+import sys
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+import joblib
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
+
+BACKEND_DIR = ROOT_DIR / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.append(str(BACKEND_DIR))
+
+from backend.app.detectors.dnn import DNN  # reuse runtime architecture
 
 BASE_DIR = Path(__file__).parent
 DEFAULT_DATA_DIR = BASE_DIR / "data"
 DEFAULT_MODEL_DIR = Path("models")
 
-# Define neural network model
-class DNNModel(nn.Module):
-    def __init__(self, input_size, hidden_size, num_classes):
-        super(DNNModel, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, num_classes)
-        self.dropout = nn.Dropout(0.2)
-    
-    def forward(self, x):
-        out = self.fc1(x)
-        out = self.relu(out)
-        out = self.dropout(out)
-        out = self.fc2(out)
-        out = self.relu(out)
-        out = self.dropout(out)
-        out = self.fc3(out)
-        return out
+FEATURE_COLUMNS = [
+    'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes',
+    'land', 'wrong_fragment', 'urgent', 'hot', 'num_failed_logins',
+    'logged_in', 'num_compromised', 'root_shell', 'su_attempted',
+    'num_root', 'num_file_creations', 'num_shells', 'num_access_files',
+    'num_outbound_cmds', 'is_host_login', 'is_guest_login', 'count',
+    'srv_count', 'serror_rate', 'srv_serror_rate', 'rerror_rate',
+    'srv_rerror_rate', 'same_srv_rate', 'diff_srv_rate',
+    'srv_diff_host_rate', 'dst_host_count', 'dst_host_srv_count',
+    'dst_host_same_srv_rate', 'dst_host_diff_srv_rate',
+    'dst_host_same_src_port_rate', 'dst_host_srv_diff_host_rate',
+    'dst_host_serror_rate', 'dst_host_srv_serror_rate',
+    'dst_host_rerror_rate', 'dst_host_srv_rerror_rate'
+]
+CAT_FEATURES = ['protocol_type', 'service', 'flag']
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train ML models on preprocessed IDS datasets.")
@@ -87,6 +99,37 @@ def parse_args():
     return parser.parse_args()
 
 
+def prepare_feature_matrices(
+    X_train_df: pd.DataFrame,
+    X_test_df: pd.DataFrame,
+) -> tuple[np.ndarray, np.ndarray, StandardScaler, Dict[str, LabelEncoder]]:
+    """Encode categorical columns and scale numeric columns."""
+    X_train = X_train_df.copy()
+    X_test = X_test_df.copy()
+
+    encoders: Dict[str, LabelEncoder] = {}
+    for col in CAT_FEATURES:
+        le = LabelEncoder()
+        train_values = X_train[col].astype(str)
+        X_train[col] = le.fit_transform(train_values)
+        mapping = {cls: idx for idx, cls in enumerate(le.classes_)}
+        test_values = X_test[col].astype(str).map(mapping).fillna(0).astype(int)
+        X_test[col] = test_values
+        encoders[col] = le
+
+    numeric_cols = [col for col in FEATURE_COLUMNS if col not in CAT_FEATURES]
+    scaler = StandardScaler()
+    X_train[numeric_cols] = scaler.fit_transform(X_train[numeric_cols])
+    X_test[numeric_cols] = scaler.transform(X_test[numeric_cols])
+
+    return (
+        X_train[FEATURE_COLUMNS].values,
+        X_test[FEATURE_COLUMNS].values,
+        scaler,
+        encoders,
+    )
+
+
 def set_seed(seed: int):
     random.seed(seed)
     np.random.seed(seed)
@@ -96,7 +139,7 @@ def set_seed(seed: int):
 
 
 def load_data(data_dir: Path, max_samples: Optional[int] = None):
-    """Load preprocessed data artifacts from disk."""
+    """Load raw feature frames and label arrays."""
     data_dir = data_dir.expanduser()
     if not data_dir.exists():
         raise FileNotFoundError(f"Preprocessed data directory not found: {data_dir}")
@@ -107,25 +150,23 @@ def load_data(data_dir: Path, max_samples: Optional[int] = None):
             raise FileNotFoundError(f"Required artifact missing: {path}")
         return np.load(path)
 
-    X_train = _load_array("X_train.npy")
-    X_test = _load_array("X_test.npy")
+    X_train = pd.read_pickle(data_dir / "X_train.pkl")
+    X_test = pd.read_pickle(data_dir / "X_test.pkl")
     y_binary_train = _load_array("y_binary_train.npy")
     y_binary_test = _load_array("y_binary_test.npy")
     y_category_train = _load_array("y_category_train.npy")
     y_category_test = _load_array("y_category_test.npy")
 
-    with open(data_dir / "preprocessor.pkl", "rb") as f:
-        preprocessor = pickle.load(f)
     with open(data_dir / "le_binary.pkl", "rb") as f:
         le_binary = pickle.load(f)
     with open(data_dir / "le_category.pkl", "rb") as f:
         le_category = pickle.load(f)
 
     if max_samples:
-        X_train = X_train[:max_samples]
+        X_train = X_train.head(max_samples)
         y_binary_train = y_binary_train[:max_samples]
         y_category_train = y_category_train[:max_samples]
-        X_test = X_test[:max_samples]
+        X_test = X_test.head(max_samples)
         y_binary_test = y_binary_test[:max_samples]
         y_category_test = y_category_test[:max_samples]
         print(f"Training on subset of {len(X_train)} samples (max-samples={max_samples}).")
@@ -137,7 +178,6 @@ def load_data(data_dir: Path, max_samples: Optional[int] = None):
         y_binary_test,
         y_category_train,
         y_category_test,
-        preprocessor,
         le_binary,
         le_category,
     )
@@ -158,6 +198,7 @@ def train_random_forest(
     y_pred = rf.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     print(f"Random Forest Accuracy: {accuracy:.4f}")
+    report = classification_report(y_test, y_pred, output_dict=True)
     print("Classification Report:")
     print(classification_report(y_test, y_pred))
 
@@ -172,7 +213,7 @@ def train_random_forest(
     plt.savefig(plot_dir / "rf_confusion_matrix.png")
     plt.close()
 
-    return rf
+    return rf, {"accuracy": accuracy, "classification_report": report}
 
 def train_dnn(
     X_train,
@@ -192,8 +233,7 @@ def train_dnn(
     X_test_tensor = torch.FloatTensor(X_test).to(device)
     y_test_tensor = torch.LongTensor(y_test).to(device)
 
-    hidden_size = 128
-    model = DNNModel(input_size, hidden_size, num_classes).to(device)
+    model = DNN(input_size, [128, 64, 32], num_classes).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     batch_size = 64
@@ -222,6 +262,11 @@ def train_dnn(
         accuracy = (predicted == y_test_tensor).sum().item() / len(y_test_tensor)
         print(f"DNN Accuracy: {accuracy:.4f}")
 
+    report = classification_report(
+        y_test_tensor.cpu().numpy(),
+        predicted.cpu().numpy(),
+        output_dict=True,
+    )
     print("Classification Report:")
     print(classification_report(y_test_tensor.cpu().numpy(), predicted.cpu().numpy()))
 
@@ -236,7 +281,7 @@ def train_dnn(
     plt.savefig(plot_dir / "dnn_confusion_matrix.png")
     plt.close()
 
-    return model
+    return model, {"accuracy": accuracy, "classification_report": report}
 
 def main():
     args = parse_args()
@@ -249,7 +294,6 @@ def main():
         y_binary_test,
         y_category_train,
         y_category_test,
-        preprocessor,
         le_binary,
         le_category,
     ) = load_data(args.data_dir, args.max_samples)
@@ -259,9 +303,14 @@ def main():
         model_dir = (Path.cwd() / model_dir).resolve()
     model_dir.mkdir(parents=True, exist_ok=True)
 
-    rf_model = train_random_forest(
+    X_train_matrix, X_test_matrix, feature_scaler, feature_encoders = prepare_feature_matrices(
         X_train,
         X_test,
+    )
+
+    rf_model, rf_metrics = train_random_forest(
+        X_train_matrix,
+        X_test_matrix,
         y_binary_train,
         y_binary_test,
         n_estimators=args.rf_estimators,
@@ -270,9 +319,9 @@ def main():
 
     input_size = X_train.shape[1]
     num_classes = len(le_category.classes_)
-    dnn_model = train_dnn(
-        X_train,
-        X_test,
+    dnn_model, dnn_metrics = train_dnn(
+        X_train_matrix,
+        X_test_matrix,
         y_category_train,
         y_category_test,
         input_size,
@@ -286,12 +335,28 @@ def main():
         pickle.dump(rf_model, f)
     torch.save(dnn_model.state_dict(), model_dir / "attack_classifier_dnn.pth")
 
-    with open(model_dir / "preprocessor.pkl", "wb") as f:
-        pickle.dump(preprocessor, f)
     with open(model_dir / "le_binary.pkl", "wb") as f:
         pickle.dump(le_binary, f)
     with open(model_dir / "le_category.pkl", "wb") as f:
         pickle.dump(le_category, f)
+
+    joblib.dump(feature_scaler, model_dir / "attack_classifier_rf_scaler.pkl")
+    joblib.dump(feature_encoders, model_dir / "attack_classifier_rf_encoders.pkl")
+    joblib.dump(feature_scaler, model_dir / "attack_classifier_dnn_scaler.pkl")
+    joblib.dump(feature_encoders, model_dir / "attack_classifier_dnn_encoders.pkl")
+
+    metrics_payload = {
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "dataset_dir": str(args.data_dir),
+        "sample_counts": {
+            "train": int(len(X_train)),
+            "test": int(len(X_test)),
+        },
+        "random_forest": rf_metrics,
+        "dnn": dnn_metrics,
+    }
+    with open(model_dir / "model_metrics.json", "w", encoding="utf-8") as handle:
+        json.dump(metrics_payload, handle, indent=2, ensure_ascii=True)
 
     print("Training complete!")
 

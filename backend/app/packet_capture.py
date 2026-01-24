@@ -14,6 +14,10 @@ from scapy.packet import Packet
 from app.config import settings
 from app.cache import cache_manager
 from app.metrics import metrics_collector
+try:
+    from scapy.arch import get_if_list
+except Exception:  # pragma: no cover - optional dependency path
+    get_if_list = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -28,9 +32,51 @@ class PacketCapture:
         self.capture_thread = None
         self.processing_thread = None
         self.packet_callbacks = []
+        self.interface_label = None
         
         # Windows-specific settings
         self.is_windows = os.name == 'nt'
+        self._select_interface()
+
+    def _select_interface(self):
+        """Resolve the capture interface when running in auto mode."""
+        if self.interface != "auto":
+            if self.is_windows:
+                self.interface_label = self.interface
+            return
+
+        if self.is_windows:
+            try:
+                interfaces = self._windows_interfaces()
+                best = self._select_best_windows_interface(interfaces)
+                if best:
+                    self.interface = best.get("guid") or best.get("name") or "Ethernet"
+                    self.interface_label = best.get("name") or best.get("description") or self.interface
+                else:
+                    logger.warning("No suitable interface found, using Ethernet")
+                    self.interface = "Ethernet"
+                    self.interface_label = "Ethernet"
+            except ImportError:
+                logger.error("Scapy Windows modules not available. Make sure Npcap is installed correctly.")
+            return
+
+        if get_if_list is None:
+            logger.warning("Scapy interface discovery unavailable; using eth0")
+            self.interface = "eth0"
+            return
+
+        try:
+            interfaces = get_if_list()
+            for iface in interfaces:
+                if iface not in ['lo', 'Loopback']:
+                    self.interface = iface
+                    break
+            if self.interface == "auto":
+                logger.warning("No suitable interface found, using eth0")
+                self.interface = "eth0"
+        except Exception as exc:
+            logger.error("Error selecting interface: %s", exc)
+            self.interface = "eth0"
         
     def start_capture(self):
         """Start packet capture in a separate thread."""
@@ -86,18 +132,15 @@ class PacketCapture:
             # Auto-select interface
             if self.interface == "auto":
                 if self.is_windows:
-                    from scapy.arch.windows import get_windows_if_list
-                    interfaces = get_windows_if_list()
-                    
-                    # Find a suitable interface
-                    for iface in interfaces:
-                        if iface.get('name') and not iface['name'].startswith(('Loopback', 'Bluetooth', 'VirtualBox', 'VMware')):
-                            self.interface = iface['name']
-                            break
-                    
+                    interfaces = self._windows_interfaces()
+                    best = self._select_best_windows_interface(interfaces)
+                    if best:
+                        self.interface = best.get("guid") or best.get("name") or "Ethernet"
+                        self.interface_label = best.get("name") or best.get("description") or self.interface
                     if not self.interface or self.interface == "auto":
                         logger.warning("No suitable interface found, using Ethernet")
                         self.interface = "Ethernet"
+                        self.interface_label = "Ethernet"
                 else:
                     from scapy.arch import get_if_list
                     interfaces = get_if_list()
@@ -111,33 +154,26 @@ class PacketCapture:
                     if self.interface == "auto":
                         logger.warning("No suitable interface found, using eth0")
                         self.interface = "eth0"
+            else:
+                self._select_interface()
             
-            logger.info(f"Capturing on interface {self.interface} with filter '{self.capture_filter}'")
+            label = self.interface_label or self.interface
+            logger.info(f"Capturing on interface {label} with filter '{self.capture_filter}'")
             
             # For Windows, we need to use a different approach
             if self.is_windows:
                 # On Windows, we need to use the Windows-specific capture method
-                from scapy.arch.windows import get_windows_if_list
-                interfaces = get_windows_if_list()
-                
-                # Find the interface GUID
-                iface_guid = None
-                for iface in interfaces:
-                    if iface.get('name') == self.interface:
-                        iface_guid = iface.get('guid')
-                        break
-                
-                if iface_guid:
-                    # Use the GUID for capture
+                pcap_iface = self._resolve_windows_pcap_iface(self.interface)
+                if pcap_iface:
                     sniff(
-                        iface=iface_guid,
+                        iface=pcap_iface,
                         filter=self.capture_filter,
                         prn=self._packet_callback,
                         stop_filter=lambda x: not self.running,
                         store=False
                     )
                 else:
-                    logger.error(f"Could not find GUID for interface {self.interface}")
+                    logger.error(f"Could not resolve Windows adapter for interface {self.interface}")
                     self.running = False
             else:
                 # Unix-like systems
@@ -195,13 +231,15 @@ class PacketCapture:
                 
                 # Extract payload
                 if Raw in packet:
-                    payload = bytes(packet[Raw].payload)
-                    info['payload'] = payload[:512].hex()  # Limit payload size
+                    payload_bytes = bytes(packet[Raw].payload)
+                    payload_sample = payload_bytes[:512]
+                    info['payload_hex'] = payload_sample.hex()
+                    info['payload'] = self._decode_payload(payload_sample)
                     
                     # Try to decode as HTTP
                     if info['protocol_name'] == 'TCP' and info['dst_port'] in [80, 443, 8080]:
                         try:
-                            http_payload = str(packet[Raw].payload)
+                            http_payload = info['payload']
                             if 'HTTP' in http_payload:
                                 info['http_method'] = self._extract_http_method(http_payload)
                                 info['http_host'] = self._extract_http_host(http_payload)
@@ -226,6 +264,78 @@ class PacketCapture:
                     return parts[0]
         except:
             pass
+        return None
+
+    @staticmethod
+    def _decode_payload(payload: bytes) -> str:
+        """Decode payload bytes into best-effort text for signature matching."""
+        if not payload:
+            return ""
+        try:
+            return payload.decode("utf-8")
+        except UnicodeDecodeError:
+            return payload.decode("latin-1", errors="ignore")
+
+    def _windows_interfaces(self):
+        from scapy.arch.windows import get_windows_if_list
+        return get_windows_if_list()
+
+    def _select_best_windows_interface(self, interfaces):
+        if not interfaces:
+            return None
+
+        def is_link_local(ip: str) -> bool:
+            return ip.startswith("169.254.") or ip.startswith("127.")
+
+        def score(iface):
+            name = (iface.get("name") or "").lower()
+            desc = (iface.get("description") or "").lower()
+            mac = iface.get("mac") or ""
+            ips = iface.get("ips") or []
+            ipv4s = [ip for ip in ips if ip.count(".") == 3]
+            has_ipv4 = any(ipv4s) and any(not is_link_local(ip) for ip in ipv4s)
+            prefer_name = name in {"wi-fi", "wifi", "ethernet", "ethernet 2"}
+            is_virtual = any(
+                key in desc
+                for key in (
+                    "virtual",
+                    "vmware",
+                    "wintun",
+                    "npcap packet driver",
+                    "wfp",
+                    "wan miniport",
+                    "tunnel",
+                    "wi-fi direct",
+                    "loopback",
+                )
+            )
+            is_virtual = is_virtual or name.startswith("local area connection*")
+            return (
+                int(not is_virtual),
+                int(has_ipv4),
+                int(bool(mac)),
+                int(prefer_name),
+                len(ipv4s),
+            )
+
+        candidates = sorted(interfaces, key=score, reverse=True)
+        return candidates[0] if candidates else None
+
+    def _resolve_windows_pcap_iface(self, interface: str) -> Optional[str]:
+        if not interface:
+            return None
+        if interface.startswith("\\\\Device\\\\NPF_"):
+            return interface
+        if interface.startswith("{") and interface.endswith("}"):
+            return f"\\\\Device\\\\NPF_{interface}"
+
+        interfaces = self._windows_interfaces()
+        target = interface.lower()
+        for iface in interfaces:
+            if (iface.get("name") or "").lower() == target or (iface.get("description") or "").lower() == target:
+                guid = iface.get("guid")
+                if guid:
+                    return f"\\\\Device\\\\NPF_{guid}"
         return None
     
     def _extract_http_host(self, payload: str) -> Optional[str]:
@@ -254,7 +364,7 @@ class PacketCapture:
     
     def _process_packets(self):
         """Process captured packets."""
-        while self.running:
+        while self.running or not self.packet_queue.empty():
             try:
                 # Get packet from queue with timeout
                 packet_info = self.packet_queue.get(timeout=1)
@@ -273,6 +383,8 @@ class PacketCapture:
                         logger.error(f"Error in packet callback: {e}")
                 
             except queue.Empty:
+                if not self.running:
+                    break
                 continue
             except Exception as e:
                 logger.error(f"Error processing packet: {e}")

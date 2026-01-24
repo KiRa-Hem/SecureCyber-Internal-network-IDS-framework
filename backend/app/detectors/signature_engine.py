@@ -173,12 +173,12 @@ class SignatureEngine:
 
         if signature.src_ports:
             src_port = packet.get("src_port") or packet.get("source_port")
-            if src_port not in signature.src_ports:
+            if src_port is not None and src_port not in signature.src_ports:
                 return []
 
         if signature.dst_ports:
             dst_port = packet.get("dst_port") or packet.get("dest_port")
-            if dst_port not in signature.dst_ports:
+            if dst_port is not None and dst_port not in signature.dst_ports:
                 return []
 
         for field, expected in signature.field_equals.items():

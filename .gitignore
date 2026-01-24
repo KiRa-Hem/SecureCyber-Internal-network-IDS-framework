@@ -26,11 +26,14 @@ share/python-wheels/
 .DS_Store
 Thumbs.db
 *.log
+*.err
 .env
 backend/.env
 pip-wheel-metadata/
 models/training_scripts/data/
 data/*.csv
-models/*.pkl
+models/training_scripts/*.pkl
 logs/
 media/videos/
+frontend/smoke-frontend-*.err
+tmp_diag.py

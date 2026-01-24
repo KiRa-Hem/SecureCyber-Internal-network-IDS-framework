@@ -1,0 +1,16 @@
+{
+  "generated_at": "YYYY-MM-DDTHH:MM:SSZ",
+  "dataset_dir": "models/training_scripts/data",
+  "sample_counts": {
+    "train": 0,
+    "test": 0
+  },
+  "random_forest": {
+    "accuracy": 0.0,
+    "classification_report": {}
+  },
+  "dnn": {
+    "accuracy": 0.0,
+    "classification_report": {}
+  }
+}

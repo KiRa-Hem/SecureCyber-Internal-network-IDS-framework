@@ -2,11 +2,13 @@ import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 from app.sensors import SensorWorker
+from app.detectors.rule_based import RuleBasedDetector
 
 class TestSensorWorker:
     def setup_method(self):
         self.websocket_manager = MagicMock()
-        self.worker = SensorWorker("edge", self.websocket_manager)
+        detectors = {"rule_based": RuleBasedDetector()}
+        self.worker = SensorWorker("edge", self.websocket_manager, detectors)
     
     @pytest.mark.asyncio
     async def test_packet_processing(self):
@@ -24,7 +26,8 @@ class TestSensorWorker:
         }
         
         # Process the packet
-        await self.worker._process_packet(packet_data)
+        self.worker._process_packet(packet_data)
+        await asyncio.sleep(0)
         
         # Check if an alert was broadcast
         self.websocket_manager.broadcast_alert.assert_called()

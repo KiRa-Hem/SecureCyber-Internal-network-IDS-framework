@@ -59,14 +59,18 @@ model_predictions = Counter(
 class MetricsCollector:
     def __init__(self):
         self.start_time = time.time()
+        self._packets_processed = 0
+        self._alerts_generated = 0
     
     def record_packet(self, detector='unknown'):
         """Record a processed packet."""
         packets_processed.labels(detector=detector).inc()
+        self._packets_processed += 1
     
     def record_alert(self, attack_type='unknown'):
         """Record a generated alert."""
         alerts_generated.labels(attack_type=attack_type).inc()
+        self._alerts_generated += 1
     
     def record_latency(self, latency, detector='unknown'):
         """Record detection latency."""
@@ -91,6 +95,14 @@ class MetricsCollector:
     def get_metrics(self):
         """Get all metrics in Prometheus format."""
         return generate_latest(registry)
+    
+    @property
+    def packets_processed_count(self):
+        return self._packets_processed
+    
+    @property
+    def alerts_generated_count(self):
+        return self._alerts_generated
 
 # Global metrics collector instance
 metrics_collector = MetricsCollector()

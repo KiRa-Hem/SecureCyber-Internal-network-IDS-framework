@@ -10,6 +10,8 @@ from unittest.mock import Mock, patch, MagicMock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
 from app.packet_capture import PacketCapture
+from scapy.layers.inet import IP, TCP
+from scapy.packet import Raw
 
 @pytest.fixture
 def packet_capture():
@@ -68,7 +70,7 @@ def test_packet_capture_extract_packet_info():
     mock_tcp.sport = 12345
     mock_tcp.dport = 80
     mock_tcp.flags = "AP"
-    mock_packet.__contains__ = Mock(side_effect=lambda layer: layer in [IP, TCP])
+    mock_packet.__contains__ = Mock(side_effect=lambda layer: layer in [IP, TCP, Raw])
     
     # Mock Raw layer
     mock_raw = Mock()
@@ -160,6 +162,9 @@ def test_packet_capture_auto_interface():
         mock_get_if_list.return_value = ['lo', 'eth0', 'wlan0']
         
         capture = PacketCapture(interface="auto")
+        capture.is_windows = False
+        capture.interface = "auto"
+        capture._select_interface()
         assert capture.interface == "eth0"  # First non-loopback interface
 
 def test_packet_capture_permission_error():
@@ -171,6 +176,10 @@ def test_packet_capture_permission_error():
         # Start capture
         capture.start_capture()
         
+        if capture.capture_thread:
+            capture.capture_thread.join(timeout=1)
+        if capture.processing_thread:
+            capture.processing_thread.join(timeout=1)
         # Verify capture is marked as stopped
         assert capture.running is False
 
@@ -183,6 +192,10 @@ def test_packet_capture_general_exception():
         # Start capture
         capture.start_capture()
         
+        if capture.capture_thread:
+            capture.capture_thread.join(timeout=1)
+        if capture.processing_thread:
+            capture.processing_thread.join(timeout=1)
         # Verify capture is marked as stopped
         assert capture.running is False
         

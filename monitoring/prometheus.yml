@@ -18,8 +18,9 @@ scrape_configs:
 
   - job_name: 'enhanced-ids-ips'
     static_configs:
-      - targets: ['localhost:8765']
+      - targets: ['backend:8000']
     metrics_path: '/metrics'
+    bearer_token: 'CHANGE_ME'
     scrape_interval: 15s
     scrape_timeout: 10s
 

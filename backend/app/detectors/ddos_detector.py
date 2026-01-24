@@ -15,8 +15,8 @@ class DoSDetector:
         Detect DDoS attacks based on request rate.
         Returns alert data if an attack is detected, None otherwise.
         """
-        source_ip = packet_data.get("source_ip", "")
-        dest_ip = packet_data.get("dest_ip", "")
+        source_ip = packet_data.get("source_ip") or packet_data.get("src_ip") or ""
+        dest_ip = packet_data.get("dest_ip") or packet_data.get("dst_ip") or ""
         timestamp = datetime.now()
         
         if not source_ip:
@@ -32,15 +32,15 @@ class DoSDetector:
         
         # Count requests in the current window
         requests_in_window = len(self.ip_request_counts[source_ip])
-        requests_per_second = requests_in_window / self.window_seconds
         
         # Update total requests
         self.ip_total_requests[source_ip] += 1
         
         # Check if threshold is exceeded
-        if requests_per_second > self.threshold:
+        if requests_in_window >= self.threshold:
             # Calculate confidence based on how much the threshold is exceeded
-            confidence = min(95, 60 + int((requests_per_second / self.threshold - 1) * 35))
+            overage = requests_in_window - self.threshold
+            confidence = min(95, 60 + overage * 5)
             
             return {
                 "id": str(uuid.uuid4()),
@@ -50,7 +50,7 @@ class DoSDetector:
                 "attacks": ["DDoS"],
                 "attack_types_short": ["DDoS"],
                 "confidence": confidence,
-                "payload_snippet": f"High request rate: {requests_per_second:.1f} req/s",
+                "payload_snippet": f"High request count: {requests_in_window} in {self.window_seconds}s",
                 "path": packet_data.get("path", []),
                 "area_of_effect": packet_data.get("area_of_effect", {"nodes": [], "radius": 0}),
                 "mitigation": {"action": "blocked", "by": "dos-detector"},
