@@ -1,22 +1,20 @@
-# Enhanced IDS/IPS System - Model Training Script for Windows
-# This script trains the ML models for the IDS/IPS system
+# Enhanced IDS/IPS System - CICIDS XGBoost Training Script for Windows
 
 param(
-    [switch]$DownloadOnly,
-    [switch]$PreprocessOnly
+    [string]$InputFile = "",
+    [string]$OutputDir = "",
+    [switch]$PreprocessOnly,
+    [switch]$RunEval
 )
 
-# Set console encoding to UTF-8
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# Colors for output
 $RED = [ConsoleColor]::Red
 $GREEN = [ConsoleColor]::Green
 $YELLOW = [ConsoleColor]::Yellow
 $BLUE = [ConsoleColor]::Blue
 $NC = [ConsoleColor]::White
 
-# Function to print colored output
 function Write-ColorOutput($ForegroundColor) {
     $fc = $host.UI.RawUI.ForegroundColor
     $host.UI.RawUI.ForegroundColor = $ForegroundColor
@@ -27,82 +25,85 @@ function Write-ColorOutput($ForegroundColor) {
 }
 
 Write-ColorOutput $BLUE "=============================================="
-Write-ColorOutput $BLUE "  Enhanced IDS/IPS System - Model Training"
+Write-ColorOutput $BLUE "  Enhanced IDS/IPS System - CICIDS XGBoost"
 Write-ColorOutput $BLUE "=============================================="
 
-# Check if virtual environment exists
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$trainingDir = Join-Path $repoRoot "models\training_scripts"
+
+$datasetPath = $InputFile
+if (-not $datasetPath) {
+    $datasetPath = Join-Path $trainingDir "data\raw\cicids\cic.csv"
+}
+
+if (-not $OutputDir) {
+    $OutputDir = Join-Path $trainingDir "data\cic"
+}
+
+$modelDir = Join-Path $repoRoot "models\cic"
+if (-not (Test-Path $modelDir)) {
+    New-Item -ItemType Directory -Path $modelDir | Out-Null
+}
+
 if (-not (Test-Path "venv")) {
     Write-ColorOutput $RED "Error: Virtual environment not found."
     Write-ColorOutput $YELLOW "Please run setup_env.ps1 first."
-    Read-Host "Press Enter to exit"
     exit 1
 }
 
-# Activate virtual environment
 Write-ColorOutput $BLUE "Activating virtual environment..."
 & .\venv\Scripts\Activate.ps1
 
-# Set environment variables for current session
 $env:PYTHONPATH = "$PWD\backend;$env:PYTHONPATH"
 
-# Change to training scripts directory
-Set-Location models\training_scripts
+Set-Location $trainingDir
 
-# Ensure dataset already exists (raw data should be downloaded beforehand)
-$datasetPath = Join-Path $PWD "data\kddcup.data_10_percent"
 if (-not (Test-Path $datasetPath)) {
     Write-ColorOutput $RED "Error: Dataset not found at $datasetPath."
-    Write-ColorOutput $YELLOW "Please place the raw KDD data in models\training_scripts\data before running this script."
-    Set-Location ..\..
-    Read-Host "Press Enter to exit"
+    Write-ColorOutput $YELLOW "Provide -InputFile or place the dataset at the default location."
+    Set-Location $repoRoot
     exit 1
 }
 else {
     Write-ColorOutput $GREEN "Found dataset at $datasetPath"
 }
 
-if ($DownloadOnly) {
-    Write-ColorOutput $GREEN "Download-only flag set; dataset presence verified."
-    Set-Location ..\..
-    Read-Host "Press Enter to exit"
-    exit 0
-}
-
-# Preprocess dataset
 Write-ColorOutput $BLUE "Preprocessing dataset..."
-python preprocess_kdd.py
+python preprocess_cic.py --input-file "$datasetPath" --output-dir "$OutputDir" --time-split --time-col timestamp
 if ($LASTEXITCODE -ne 0) {
     Write-ColorOutput $RED "Error: Failed to preprocess dataset."
-    Set-Location ..\..
-    Read-Host "Press Enter to exit"
+    Set-Location $repoRoot
     exit 1
 }
 
 if ($PreprocessOnly) {
     Write-ColorOutput $GREEN "Dataset preprocessed successfully."
-    Set-Location ..\..
-    Read-Host "Press Enter to exit"
+    Set-Location $repoRoot
     exit 0
 }
 
-# Train models
-Write-ColorOutput $BLUE "Training ML models..."
-python train_models.py
+Write-ColorOutput $BLUE "Training XGBoost model..."
+python train_models.py --data-dir "$OutputDir" --model-dir "$modelDir"
 if ($LASTEXITCODE -ne 0) {
-    Write-ColorOutput $RED "Error: Failed to train models."
-    Set-Location ..\..
-    Read-Host "Press Enter to exit"
+    Write-ColorOutput $RED "Error: Failed to train model."
+    Set-Location $repoRoot
     exit 1
 }
 
-# Return to project root
-Set-Location ..\..
+if ($RunEval) {
+    Write-ColorOutput $BLUE "Evaluating trained model..."
+    python evaluate_models.py --data-dir "$OutputDir" --model-dir "$modelDir"
+    if ($LASTEXITCODE -ne 0) {
+        Write-ColorOutput $RED "Error: Failed to evaluate model."
+        Set-Location $repoRoot
+        exit 1
+    }
+}
+
+Set-Location $repoRoot
 
 Write-ColorOutput $GREEN "=============================================="
 Write-ColorOutput $GREEN "  Model training complete!"
 Write-ColorOutput $GREEN "=============================================="
-Write-ColorOutput $BLUE "Models saved in the models directory:"
-Write-ColorOutput $BLUE "- models/attack_classifier_rf.pkl"
-Write-ColorOutput $BLUE "- models/attack_classifier_dnn.pth"
-
-Read-Host "Press Enter to exit"
+Write-ColorOutput $BLUE "Artifacts saved in models/cic:" 
+Write-ColorOutput $BLUE "- models/cic/attack_classifier_xgb.json"

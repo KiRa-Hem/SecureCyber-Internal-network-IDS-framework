@@ -50,7 +50,7 @@ class PacketCapture:
                 interfaces = self._windows_interfaces()
                 best = self._select_best_windows_interface(interfaces)
                 if best:
-                    self.interface = best.get("guid") or best.get("name") or "Ethernet"
+                    self.interface = best.get("name") or best.get("guid") or "Ethernet"
                     self.interface_label = best.get("name") or best.get("description") or self.interface
                 else:
                     logger.warning("No suitable interface found, using Ethernet")
@@ -135,7 +135,7 @@ class PacketCapture:
                     interfaces = self._windows_interfaces()
                     best = self._select_best_windows_interface(interfaces)
                     if best:
-                        self.interface = best.get("guid") or best.get("name") or "Ethernet"
+                        self.interface = best.get("name") or best.get("guid") or "Ethernet"
                         self.interface_label = best.get("name") or best.get("description") or self.interface
                     if not self.interface or self.interface == "auto":
                         logger.warning("No suitable interface found, using Ethernet")
@@ -215,6 +215,7 @@ class PacketCapture:
                 info['src_ip'] = packet[IP].src
                 info['dst_ip'] = packet[IP].dst
                 info['protocol'] = packet[IP].proto
+                info['protocol_name'] = 'IP'
                 
                 # Extract transport layer
                 if TCP in packet:
@@ -222,12 +223,20 @@ class PacketCapture:
                     info['dst_port'] = packet[TCP].dport
                     info['flags'] = packet[TCP].flags
                     info['protocol_name'] = 'TCP'
+                    info['tcp_window'] = getattr(packet[TCP], "window", None)
+                    data_offset = getattr(packet[TCP], "dataofs", None)
+                    if isinstance(data_offset, (int, float)) and data_offset:
+                        info['header_len'] = int(data_offset) * 4
+                    else:
+                        info['header_len'] = 20
                 elif UDP in packet:
                     info['src_port'] = packet[UDP].sport
                     info['dst_port'] = packet[UDP].dport
                     info['protocol_name'] = 'UDP'
+                    info['header_len'] = 8
                 elif ICMP in packet:
                     info['protocol_name'] = 'ICMP'
+                    info['header_len'] = 8
                 
                 # Extract payload
                 if Raw in packet:
@@ -235,6 +244,7 @@ class PacketCapture:
                     payload_sample = payload_bytes[:512]
                     info['payload_hex'] = payload_sample.hex()
                     info['payload'] = self._decode_payload(payload_sample)
+                    info['payload_len'] = len(payload_bytes)
                     
                     # Try to decode as HTTP
                     if info['protocol_name'] == 'TCP' and info['dst_port'] in [80, 443, 8080]:
@@ -247,6 +257,9 @@ class PacketCapture:
                         except:
                             pass
             
+            if 'payload_len' not in info:
+                info['payload_len'] = 0
+
             return info
             
         except Exception as e:
@@ -326,16 +339,18 @@ class PacketCapture:
             return None
         if interface.startswith("\\\\Device\\\\NPF_"):
             return interface
-        if interface.startswith("{") and interface.endswith("}"):
-            return f"\\\\Device\\\\NPF_{interface}"
-
         interfaces = self._windows_interfaces()
         target = interface.lower()
         for iface in interfaces:
-            if (iface.get("name") or "").lower() == target or (iface.get("description") or "").lower() == target:
-                guid = iface.get("guid")
-                if guid:
-                    return f"\\\\Device\\\\NPF_{guid}"
+            name = (iface.get("name") or "")
+            desc = (iface.get("description") or "")
+            guid = iface.get("guid") or ""
+            if guid.lower() == target:
+                return name or f"\\\\Device\\\\NPF_{guid}"
+            if name.lower() == target or desc.lower() == target:
+                return name or f"\\\\Device\\\\NPF_{guid}"
+        if interface.startswith("{") and interface.endswith("}"):
+            return f"\\\\Device\\\\NPF_{interface}"
         return None
     
     def _extract_http_host(self, payload: str) -> Optional[str]:

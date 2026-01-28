@@ -131,6 +131,14 @@ class TrafficSimulator:
         
         # Select random network path
         path = random.choice(self.network_paths)
+
+        protocol = "TCP"
+        flags = random.choice(["PA", "S", "A", "F", "R", ""])
+        header_len = 20
+        src_port = random.randint(1024, 65535)
+        dst_port = random.choice([80, 443, 22, 21, 25, 53, 3389])
+        payload_len = len(pattern["payload"]) if pattern.get("payload") else 0
+        size = max(60, header_len + payload_len)
         
         # Create packet data
         packet_data = {
@@ -138,6 +146,12 @@ class TrafficSimulator:
             "source_ip": source_ip,
             "dest_ip": dest_ip,
             "protocol": "TCP",
+            "src_port": src_port,
+            "dst_port": dst_port,
+            "size": size,
+            "flags": flags,
+            "header_len": header_len,
+            "payload_len": payload_len,
             "payload": pattern["payload"],
             "attack_types": attack_types,
             "confidence": random.uniform(0.7, 0.95) if attack_types else 0.1,

@@ -40,9 +40,20 @@ class Settings(BaseSettings):
     MODEL_PATH: str = '../models'
     RETRAIN_THRESHOLD: int = 100
     CORRELATION_WINDOW_SECONDS: int = 300
+    FEATURE_SCHEMA: str = 'auto'
+    ENABLE_ANOMALY_DETECTION: bool = True
+    ANOMALY_SCORE_THRESHOLD: Optional[float] = None
+    ANOMALY_CONTAMINATION: float = 0.01
+    ANOMALY_WARMUP_SAMPLES: int = 500
 
     # Demo/simulation
     ENABLE_SIMULATION: bool = False
+
+    # CIC flow extraction
+    CIC_FLOW_TIMEOUT_SECONDS: int = 120
+    CIC_IDLE_THRESHOLD_SECONDS: float = 1.0
+    # Packet-level feature extraction (17-feature pipeline)
+    PACKET_FEATURE_WINDOW_SECONDS: float = 1.0
     
     # Mitigation settings
     ENABLE_REAL_MITIGATION: bool = False
@@ -58,6 +69,12 @@ class Settings(BaseSettings):
     RATE_LIMIT_REQUESTS: int = 100
     RATE_LIMIT_WINDOW: int = 60
     API_TOKEN: Optional[str] = None
+    ADMIN_TOKEN: Optional[str] = None
+    JWT_SECRET: Optional[str] = None
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ISSUER: Optional[str] = None
+    JWT_AUDIENCE: Optional[str] = None
+    JWT_EXP_SECONDS: int = 3600
     CORS_ORIGINS: List[str] = [
         'http://localhost',
         'http://127.0.0.1',
@@ -71,6 +88,20 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = 'INFO'
     LOG_FILE: str = 'logs/ids.log'
+    AUDIT_LOG_ENABLED: bool = True
+    AUDIT_LOG_FILE: str = 'logs/audit.log'
+    AUDIT_LOG_TO_DB: bool = True
+
+    # Alert integrity
+    ALERT_DEDUP_WINDOW_SECONDS: int = 30
+    ALERT_FUSION_ENABLED: bool = True
+
+    # Drift monitoring
+    DRIFT_ENABLED: bool = True
+    DRIFT_WINDOW_SIZE: int = 500
+    DRIFT_Z_THRESHOLD: float = 3.0
+    DRIFT_MIN_FEATURES: int = 4
+    DRIFT_COOLDOWN_SECONDS: int = 300
     
     # Computed properties
     @property
@@ -121,6 +152,26 @@ class Settings(BaseSettings):
     @property
     def correlation_window_seconds(self) -> int:
         return self.CORRELATION_WINDOW_SECONDS
+
+    @property
+    def feature_schema(self) -> str:
+        return self.FEATURE_SCHEMA
+
+    @property
+    def enable_anomaly_detection(self) -> bool:
+        return self.ENABLE_ANOMALY_DETECTION
+
+    @property
+    def cic_flow_timeout_seconds(self) -> int:
+        return self.CIC_FLOW_TIMEOUT_SECONDS
+
+    @property
+    def cic_idle_threshold_seconds(self) -> float:
+        return self.CIC_IDLE_THRESHOLD_SECONDS
+
+    @property
+    def packet_feature_window_seconds(self) -> float:
+        return self.PACKET_FEATURE_WINDOW_SECONDS
 
     @property
     def model_path(self) -> str:

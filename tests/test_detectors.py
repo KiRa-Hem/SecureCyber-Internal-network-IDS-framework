@@ -7,10 +7,9 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
 from app.detectors.rule_based import RuleBasedDetector
-from app.detectors.random_forest import RandomForestDetector
-from app.detectors.dnn import DNNDetector
+from app.detectors.xgboost_detector import XGBoostDetector
 from app.detectors.ddos_detector import DoSDetector
-from app.features import FeatureExtractor
+from app.features import CICFlowFeatureExtractor
 
 
 @pytest.fixture
@@ -22,9 +21,13 @@ def sample_packet():
         "dst_ip": "10.0.0.1",
         "src_port": 12345,
         "dst_port": 80,
-        "protocol": "TCP",
+        "protocol": 6,
+        "protocol_name": "TCP",
         "flags": "AP",
         "payload": "GET /index.html HTTP/1.1\r\nHost: example.com\r\nUser-Agent: Mozilla/5.0",
+        "size": 512,
+        "payload_len": 128,
+        "header_len": 20,
     }
 
 
@@ -37,9 +40,13 @@ def malicious_packet():
         "dst_ip": "10.0.0.1",
         "src_port": 12345,
         "dst_port": 80,
-        "protocol": "TCP",
+        "protocol": 6,
+        "protocol_name": "TCP",
         "flags": "AP",
         "payload": "GET /search?q=' OR '1'='1' -- HTTP/1.1\r\nHost: example.com",
+        "size": 512,
+        "payload_len": 128,
+        "header_len": 20,
     }
 
 
@@ -59,23 +66,15 @@ def test_rule_based_detector_malicious(malicious_packet):
     assert alert["confidence"] >= 80
 
 
-def test_random_forest_detector_predicts(sample_packet):
-    detector = RandomForestDetector()
-    features = FeatureExtractor().extract(sample_packet)
+def test_xgboost_detector_predicts(sample_packet):
+    detector = XGBoostDetector()
+    if detector.model is None:
+        pytest.skip("XGBoost model not available for prediction test.")
+    features = CICFlowFeatureExtractor().extract(sample_packet)
     result = detector.predict(features)
 
     assert result is not None
     assert result["prediction"] in (0, 1)
-    assert 0.0 <= result["confidence"] <= 1.0
-
-
-def test_dnn_detector_predicts(sample_packet):
-    detector = DNNDetector()
-    features = FeatureExtractor().extract(sample_packet)
-    result = detector.predict(features)
-
-    assert result is not None
-    assert 0 <= result["prediction"] < detector.num_classes
     assert 0.0 <= result["confidence"] <= 1.0
 
 

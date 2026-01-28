@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureCyber Login Demo</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Roboto+Mono:wght@300;400&display=swap" rel="stylesheet">
+</head>
+<body class="login-body">
+    <div class="login-shell">
+        <div class="login-card">
+            <h1>SecureCyber Login Demo</h1>
+            <p>
+                Use <strong>admin / admin123</strong> for a clean login. Try a SQL injection payload
+                such as <strong>admin' OR '1'='1</strong> to trigger IDS detection.
+            </p>
+            <form class="login-form" id="login-form">
+                <label class="login-field" for="username">
+                    Username
+                    <input id="username" name="username" type="text" autocomplete="username" required>
+                </label>
+                <label class="login-field" for="password">
+                    Password
+                    <input id="password" name="password" type="password" autocomplete="current-password" required>
+                </label>
+                <button class="login-btn" type="submit">Sign In</button>
+            </form>
+            <div class="login-status" id="login-status" role="status">
+                Waiting for input.
+            </div>
+            <div class="login-links">
+                <a href="index.html">Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+    <script src="login.js"></script>
+</body>
+</html>

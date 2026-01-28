@@ -8,17 +8,15 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 from app.packet_capture import PacketCapture
-from app.detectors.rule_based import RuleBasedDetector
-from app.detectors.ddos_detector import DoSDetector
-from app.detectors.random_forest import RandomForestDetector
-from app.detectors.dnn import DNNDetector
-from app.features import FeatureExtractor
+from app.features import get_feature_extractor
 from app.correlator import correlator
 from app.mitigation import mitigation
 from app.cache import cache_manager
 from app.metrics import metrics_collector
 from app.db import db
 from app.config import settings
+from app.alert_fusion import fuse_alerts
+from app.drift import drift_monitor
 
 logger = logging.getLogger(__name__)
 
@@ -29,26 +27,42 @@ class SensorWorker:
         self.detectors = detectors
         self.running = False
         self.packet_capture = None
+        self.loop = None
         self.stats = {
             'packets_processed': 0,
             'alerts_generated': 0,
             'start_time': time.time()
         }
-        self.feature_extractor = FeatureExtractor()
+        self.feature_extractor = get_feature_extractor()
     
     async def start(self):
         """Start the sensor worker."""
         self.running = True
+        self.loop = asyncio.get_running_loop()
         logger.info(f"Sensor worker at {self.location} started")
         
-        # Start packet capture if enabled
-        if hasattr(settings, 'enable_packet_capture') and settings.enable_packet_capture:
+        # Start packet capture if enabled (single capture per host)
+        primary_location = None
+        if hasattr(settings, 'sensor_locations') and settings.sensor_locations:
+            primary_location = settings.sensor_locations[0]
+        should_capture = (
+            hasattr(settings, 'enable_packet_capture')
+            and settings.enable_packet_capture
+            and (primary_location is None or self.location == primary_location)
+        )
+        if should_capture:
             self.packet_capture = PacketCapture(
                 interface=getattr(settings, 'network_interface', 'auto'),
                 capture_filter=getattr(settings, 'capture_filter', 'tcp or udp')
             )
             self.packet_capture.add_packet_callback(self._process_packet)
             self.packet_capture.start_capture()
+        elif hasattr(settings, 'enable_packet_capture') and settings.enable_packet_capture:
+            logger.info(
+                "Skipping packet capture for %s; capture handled by %s",
+                self.location,
+                primary_location or "primary sensor",
+            )
         
         # Run main loop
         while self.running:
@@ -102,61 +116,86 @@ class SensorWorker:
             
             features = self.feature_extractor.extract(packet_info)
 
-            # RandomForest detection
-            rf_detector = self.detectors.get('random_forest')
-            if rf_detector and getattr(rf_detector, "model", None) is not None:
-                rf_result = rf_detector.predict(features)
-                if rf_result and rf_result['prediction'] == 1:
-                    rf_alert = {
-                        'id': f"rf-{int(time.time())}",
+            # XGBoost detection
+            xgb_detector = self.detectors.get('xgboost')
+            if xgb_detector and getattr(xgb_detector, "model", None) is not None:
+                xgb_result = xgb_detector.predict(features)
+                xgb_is_attack = xgb_result and xgb_result.get("is_attack", xgb_result.get("prediction") == 1)
+                if xgb_is_attack:
+                    xgb_alert = {
+                        'id': f"xgb-{int(time.time())}",
                         'timestamp': int(time.time()),
                         'source_ip': packet_info.get('src_ip', 'unknown'),
                         'dest_ip': packet_info.get('dst_ip', 'unknown'),
                         'protocol': packet_info.get('protocol_name', 'TCP'),
-                        'attack_types': ['RandomForest Detection'],
-                        'confidence': rf_result['confidence'],
+                        'attack_types': ['XGBoost Detection'],
+                        'confidence': xgb_result['confidence'],
                         'payload_snippet': packet_info.get('payload', '')[:100],
                         'path': [self.location, 'unknown'],
-                        'mitigation': {'action': 'flagged', 'by': 'random_forest'},
+                        'mitigation': {'action': 'flagged', 'by': 'xgboost'},
                         'attacker_node': self.location,
                         'target_node': 'unknown',
                         'targeted_data': []
                     }
-                    alerts.append(rf_alert)
-                    metrics_collector.record_prediction('random_forest', 'attack')
+                    alerts.append(xgb_alert)
+                    metrics_collector.record_prediction('xgboost', 'attack')
                 else:
-                    metrics_collector.record_prediction('random_forest', 'normal')
-            
-            # DNN detection
-            dnn_detector = self.detectors.get('dnn')
-            if dnn_detector and getattr(dnn_detector, "model", None) is not None:
-                dnn_result = dnn_detector.predict(features)
-                if dnn_result and dnn_result['prediction'] == 1:
-                    dnn_alert = {
-                        'id': f"dnn-{int(time.time())}",
-                        'timestamp': int(time.time()),
-                        'source_ip': packet_info.get('src_ip', 'unknown'),
-                        'dest_ip': packet_info.get('dst_ip', 'unknown'),
-                        'protocol': packet_info.get('protocol_name', 'TCP'),
-                        'attack_types': ['DNN Detection'],
-                        'confidence': dnn_result['confidence'],
-                        'payload_snippet': packet_info.get('payload', '')[:100],
-                        'path': [self.location, 'unknown'],
-                        'mitigation': {'action': 'flagged', 'by': 'dnn'},
-                        'attacker_node': self.location,
-                        'target_node': 'unknown',
-                        'targeted_data': []
-                    }
-                    alerts.append(dnn_alert)
-                    metrics_collector.record_prediction('dnn', 'attack')
-                else:
-                    metrics_collector.record_prediction('dnn', 'normal')
+                    metrics_collector.record_prediction('xgboost', 'normal')
+
+            # Isolation Forest anomaly detection
+            anomaly_detector = self.detectors.get('anomaly')
+            if anomaly_detector:
+                anomaly_result = anomaly_detector.predict(features)
+                if anomaly_result:
+                    if anomaly_result.get("is_anomaly"):
+                        score = anomaly_result.get("score")
+                        threshold = anomaly_result.get("threshold")
+                        score_text = f"{score:.4f}" if isinstance(score, (int, float)) else "n/a"
+                        threshold_text = f"{threshold:.4f}" if isinstance(threshold, (int, float)) else "n/a"
+                        anomaly_alert = {
+                            'id': f"anom-{int(time.time())}",
+                            'timestamp': int(time.time()),
+                            'source_ip': packet_info.get('src_ip', 'unknown'),
+                            'dest_ip': packet_info.get('dst_ip', 'unknown'),
+                            'protocol': packet_info.get('protocol_name', 'TCP'),
+                            'attack_types': ['Anomaly'],
+                            'confidence': anomaly_result.get('confidence', 0.8),
+                            'payload_snippet': packet_info.get('payload', '')[:100],
+                            'description': f"Isolation Forest score {score_text} below threshold {threshold_text}",
+                            'path': packet_info.get('path', []),
+                            'mitigation': {'action': 'flagged', 'by': 'isolation-forest'},
+                            'attacker_node': self.location,
+                            'target_node': packet_info.get('target_node', 'unknown'),
+                            'targeted_data': []
+                        }
+                        alerts.append(anomaly_alert)
+                        metrics_collector.record_prediction('anomaly', 'attack')
+                    else:
+                        metrics_collector.record_prediction('anomaly', 'normal')
+
+            # Drift monitoring (non-blocking)
+            drift_alert = drift_monitor.update(features)
+            if drift_alert:
+                drift_alert.update({
+                    "source_ip": packet_info.get('src_ip', 'unknown'),
+                    "dest_ip": packet_info.get('dst_ip', 'unknown'),
+                    "protocol": packet_info.get('protocol_name', 'TCP'),
+                    "payload_snippet": packet_info.get('payload', '')[:100],
+                    "path": packet_info.get('path', []),
+                    "attacker_node": self.location,
+                    "target_node": packet_info.get('target_node', 'unknown'),
+                })
+                alerts.append(drift_alert)
+                metrics_collector.record_drift_alert()
             
             # Record latency
             latency = time.time() - start_time
             metrics_collector.record_latency(latency, self.location)
             
-            # Process alerts
+            # Fuse + process alerts
+            if settings.ALERT_FUSION_ENABLED and len(alerts) > 1:
+                alerts = fuse_alerts(alerts)
+                metrics_collector.record_fused_alert()
             for alert in alerts:
                 self._process_alert(alert)
             
@@ -170,6 +209,15 @@ class SensorWorker:
             while queue:
                 current = queue.pop(0)
                 sanitized = self._sanitize_for_storage(current)
+
+                # Deduplicate alerts within a time window
+                dedup_key = self._dedup_key(sanitized)
+                if dedup_key:
+                    existing = cache_manager.get(dedup_key)
+                    if existing:
+                        metrics_collector.record_deduped_alert()
+                        continue
+                    cache_manager.set(dedup_key, True, settings.ALERT_DEDUP_WINDOW_SECONDS)
 
                 mitigation_action = sanitized.get('mitigation', {}).get('action', 'flagged')
                 if mitigation_action == 'block' and 'source_ip' in sanitized:
@@ -200,22 +248,59 @@ class SensorWorker:
                     if correlated_alert:
                         queue.append(correlated_alert)
 
-                asyncio.create_task(self.manager.broadcast_alert(sanitized))
+                if self.loop and self.loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        self.manager.broadcast_alert(sanitized),
+                        self.loop,
+                    )
+                else:
+                    try:
+                        asyncio.create_task(self.manager.broadcast_alert(sanitized))
+                    except RuntimeError as exc:
+                        logger.error("Unable to dispatch alert broadcast: %s", exc)
 
         except Exception as e:
             logger.error(f"Error processing alert: {e}")
+
+    def _dedup_key(self, alert: Dict[str, Any]) -> Optional[str]:
+        attacks = alert.get("attack_types") or alert.get("attacks") or []
+        if isinstance(attacks, str):
+            attacks = [attacks]
+        attacks_key = ",".join(sorted(map(str, attacks))) if attacks else "unknown"
+        src = alert.get("source_ip") or alert.get("src_ip") or "unknown"
+        dst = alert.get("dest_ip") or alert.get("dst_ip") or "unknown"
+        target = alert.get("target_node") or "unknown"
+        return f"alert:{attacks_key}:{src}:{dst}:{target}"
     
     async def _simulate_traffic(self):
         """Simulate network traffic for demo purposes."""
         # Generate a random packet
+        protocol = random.choice(["TCP", "UDP"])
+        if protocol == "TCP":
+            flags = random.choice(["S", "SA", "PA", "FA", "R", ""])
+            header_len = random.choice([20, 24, 32])
+            tcp_window = random.randint(1024, 65535)
+        else:
+            flags = ""
+            header_len = 8
+            tcp_window = None
+
+        size = random.randint(64, 1500)
+        payload_len = max(0, size - header_len)
+
         packet_info = {
             'timestamp': time.time(),
             'src_ip': f"10.0.{random.randint(1, 255)}.{random.randint(1, 255)}",
             'dst_ip': f"10.0.{random.randint(1, 255)}.{random.randint(1, 255)}",
-            'protocol': random.choice(['TCP', 'UDP']),
+            'protocol': protocol,
+            'protocol_name': protocol,
             'src_port': random.randint(1, 65535),
             'dst_port': random.choice([80, 443, 22, 21, 25, 53, 3389]),
-            'size': random.randint(64, 1500)
+            'size': size,
+            'flags': flags,
+            'header_len': header_len,
+            'payload_len': payload_len,
+            'tcp_window': tcp_window,
         }
         
         # Occasionally generate attack traffic

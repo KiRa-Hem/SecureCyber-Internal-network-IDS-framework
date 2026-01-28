@@ -56,6 +56,24 @@ model_predictions = Counter(
     registry=registry
 )
 
+drift_alerts = Counter(
+    'ids_drift_alerts_total',
+    'Total number of drift alerts generated',
+    registry=registry
+)
+
+deduped_alerts = Counter(
+    'ids_deduped_alerts_total',
+    'Total number of alerts skipped due to deduplication',
+    registry=registry
+)
+
+fused_alerts = Counter(
+    'ids_fused_alerts_total',
+    'Total number of fused alerts generated',
+    registry=registry
+)
+
 class MetricsCollector:
     def __init__(self):
         self.start_time = time.time()
@@ -91,6 +109,15 @@ class MetricsCollector:
     def record_prediction(self, model='unknown', prediction='unknown'):
         """Record a model prediction."""
         model_predictions.labels(model=model, prediction=prediction).inc()
+
+    def record_drift_alert(self):
+        drift_alerts.inc()
+
+    def record_deduped_alert(self):
+        deduped_alerts.inc()
+
+    def record_fused_alert(self):
+        fused_alerts.inc()
     
     def get_metrics(self):
         """Get all metrics in Prometheus format."""

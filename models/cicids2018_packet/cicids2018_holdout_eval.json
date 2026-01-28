@@ -1,0 +1,217 @@
+{
+  "model_dir": "models\\cicids2018_packet",
+  "input_dir": "models\\training_scripts\\data\\raw\\CICIDS 2018",
+  "files": [
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-14-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-15-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-16-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-20-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-21-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-22-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-23-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-28-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\03-01-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\03-02-2018.csv"
+  ],
+  "feature_columns": [
+    "dst_port",
+    "protocol",
+    "totlen_fwd_pkts",
+    "fwd_pkt_len_max",
+    "fwd_pkt_len_mean",
+    "flow_byts_s",
+    "psh_flag_cnt",
+    "urg_flag_cnt",
+    "fin_flag_cnt",
+    "syn_flag_cnt",
+    "rst_flag_cnt",
+    "ack_flag_cnt",
+    "fwd_header_len",
+    "fwd_pkt_len_min",
+    "fwd_pkt_len_std",
+    "down_up_ratio",
+    "fwd_pkts_s"
+  ],
+  "total_rows": 16137183,
+  "dropped_rows": 95819,
+  "overall": {
+    "counts": {
+      "tp": 2077616,
+      "tn": 9140804,
+      "fp": 4249445,
+      "fn": 669318
+    },
+    "metrics": {
+      "accuracy": 0.6951907281462942,
+      "precision": 0.32836983869761965,
+      "recall": 0.7563399775895598,
+      "f1": 0.4579275170418322
+    },
+    "roc_auc": null,
+    "pr_auc": null,
+    "auc_rows": 1838803,
+    "auc_partial": true
+  },
+  "per_file": {
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-14-2018.csv": {
+      "rows": 1044751,
+      "dropped_rows": 3824,
+      "counts": {
+        "tp": 287125,
+        "tn": 477325,
+        "fp": 186483,
+        "fn": 93818
+      },
+      "metrics": {
+        "accuracy": 0.7317054494324485,
+        "precision": 0.606250316717623,
+        "recall": 0.7537216853965029,
+        "f1": 0.6719903200628166
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-15-2018.csv": {
+      "rows": 1040548,
+      "dropped_rows": 8027,
+      "counts": {
+        "tp": 19608,
+        "tn": 681535,
+        "fp": 306515,
+        "fn": 32890
+      },
+      "metrics": {
+        "accuracy": 0.6738209097514002,
+        "precision": 0.06012455423260549,
+        "recall": 0.3734999428549659,
+        "f1": 0.10357587138589776
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-16-2018.csv": {
+      "rows": 1048574,
+      "dropped_rows": 1,
+      "counts": {
+        "tp": 577589,
+        "tn": 438600,
+        "fp": 8172,
+        "fn": 24213
+      },
+      "metrics": {
+        "accuracy": 0.9691151983550994,
+        "precision": 0.9860489175619408,
+        "recall": 0.9597658366040658,
+        "f1": 0.972729867804908
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-20-2018.csv": {
+      "rows": 7889295,
+      "dropped_rows": 59453,
+      "counts": {
+        "tp": 275183,
+        "tn": 4663100,
+        "fp": 2650004,
+        "fn": 301008
+      },
+      "metrics": {
+        "accuracy": 0.625947312148931,
+        "precision": 0.09407364383883833,
+        "recall": 0.4775898964058793,
+        "f1": 0.15718554237788662
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-21-2018.csv": {
+      "rows": 1048575,
+      "dropped_rows": 0,
+      "counts": {
+        "tp": 687742,
+        "tn": 358663,
+        "fp": 2170,
+        "fn": 0
+      },
+      "metrics": {
+        "accuracy": 0.997930524759793,
+        "precision": 0.9968546713204003,
+        "recall": 1.0,
+        "f1": 0.9984248584913193
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-22-2018.csv": {
+      "rows": 1042965,
+      "dropped_rows": 5610,
+      "counts": {
+        "tp": 320,
+        "tn": 776851,
+        "fp": 265752,
+        "fn": 42
+      },
+      "metrics": {
+        "accuracy": 0.7451553983115445,
+        "precision": 0.0012026819808172225,
+        "recall": 0.8839779005524862,
+        "f1": 0.0024020958286104627
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-23-2018.csv": {
+      "rows": 1042867,
+      "dropped_rows": 5708,
+      "counts": {
+        "tp": 515,
+        "tn": 776556,
+        "fp": 265745,
+        "fn": 51
+      },
+      "metrics": {
+        "accuracy": 0.7451295323372971,
+        "precision": 0.0019341996544730714,
+        "recall": 0.9098939929328622,
+        "f1": 0.0038601935343632178
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-28-2018.csv": {
+      "rows": 606902,
+      "dropped_rows": 6202,
+      "counts": {
+        "tp": 33788,
+        "tn": 277297,
+        "fp": 261369,
+        "fn": 34448
+      },
+      "metrics": {
+        "accuracy": 0.5125786370781444,
+        "precision": 0.11447466941322754,
+        "recall": 0.49516384313265727,
+        "f1": 0.1859584526944658
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\03-01-2018.csv": {
+      "rows": 328181,
+      "dropped_rows": 2944,
+      "counts": {
+        "tp": 51738,
+        "tn": 140783,
+        "fp": 94995,
+        "fn": 40665
+      },
+      "metrics": {
+        "accuracy": 0.5866305483864087,
+        "precision": 0.35259961971744597,
+        "recall": 0.5599168858153956,
+        "f1": 0.4327077478924127
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\03-02-2018.csv": {
+      "rows": 1044525,
+      "dropped_rows": 4050,
+      "counts": {
+        "tp": 144008,
+        "tn": 550094,
+        "fp": 208240,
+        "fn": 142183
+      },
+      "metrics": {
+        "accuracy": 0.6645144922333118,
+        "precision": 0.40882560014535213,
+        "recall": 0.5031884301043709,
+        "f1": 0.4511253228577828
+      }
+    }
+  }
+}

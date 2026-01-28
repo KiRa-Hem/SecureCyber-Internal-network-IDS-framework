@@ -5,12 +5,20 @@
     "train": 0,
     "test": 0
   },
-  "random_forest": {
+  "xgboost": {
     "accuracy": 0.0,
+    "f1": 0.0,
+    "roc_auc": 0.0,
+    "pr_auc": 0.0,
     "classification_report": {}
   },
-  "dnn": {
-    "accuracy": 0.0,
-    "classification_report": {}
+  "thresholds": {
+    "target_fpr": 0.01,
+    "xgboost": {
+      "best_f1": 0.0,
+      "best_f1_threshold": 0.0,
+      "recall_at_fpr_target": 0.0,
+      "threshold_at_fpr_target": 0.0
+    }
   }
 }

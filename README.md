@@ -3,17 +3,17 @@
 AI-powered intrusion detection and prevention for internal networks. A FastAPI backend drives real-time detection, mitigation, and metrics, while a neon-inspired dashboard streams events over WebSockets.
 
 ## Highlights
-- Multi-layer detection: signature/rule-based, DDoS heuristics, RandomForest, and DNN models in `backend/app/detectors/`
+- Multi-layer detection: signature/rule-based, DDoS heuristics, XGBoost model in `backend/app/detectors/`
 - Real-time pipeline: sensor workers, correlator, mitigation engine, cache, and Prometheus metrics in `backend/app/`
 - Dashboard: futuristic UI in `frontend/` with live alerts, topology view, packet inspector, and quick attack simulations
 - Deployment ready: Docker Compose stack for backend, Redis, MongoDB, Prometheus, Grafana, and nginx fronting the static site
 - Observability: `/metrics` for Prometheus plus prebuilt Grafana dashboard and alert rules in `monitoring/`
-- Extensible: training scripts and pretrained artifacts in `models/` for retraining on KDD/CICIDS-style datasets
+- Extensible: training scripts and pretrained artifacts in `models/` for retraining on CICIDS datasets
 
 ## Repository Layout
 - `backend/` — FastAPI service, detectors, correlator, mitigation, config, and runtime entrypoint (`backend/main.py`)
 - `frontend/` — static dashboard served by FastAPI or nginx
-- `models/` — pretrained `.pth`/`.pkl` models plus `training_scripts/` for preprocessing and training
+- `models/` — pretrained model artifacts plus `training_scripts/` for preprocessing and training
 - `monitoring/` — Prometheus config, Grafana dashboard JSON, alert rules, nginx config for the compose stack
 - `scripts/` — helper scripts (traffic simulation, attack simulation, environment setup, migrations)
 - `tests/` — pytest suite for API, detectors, packet capture, and WebSocket flows
@@ -79,7 +79,7 @@ By default the system uses MongoDB for persistence; Redis is optional and can be
 
 ## How Detection Works
 1) **Sensors** (`backend/app/sensors.py`) capture or simulate traffic per location, extract features, and push packets to detectors.  
-2) **Detectors** combine rule-based signatures, DoS heuristics, RandomForest, and DNN models (`backend/app/detectors/`) to emit alerts with confidence scores.  
+2) **Detectors** combine rule-based signatures, DoS heuristics, XGBoost model (`backend/app/detectors/`) to emit alerts with confidence scores.  
 3) **Correlator** (`backend/app/correlator.py`) merges related alerts across sensors into higher-fidelity incidents.  
 4) **Mitigation** (`backend/app/mitigation.py`) maintains blocklists and node isolation with TTLs; actions can be toggled off for dry runs.  
 5) **Cache + Metrics** (`backend/app/cache.py`, `backend/app/metrics.py`) keep rolling stats, expose `/metrics`, and drive the live dashboard via WebSockets.  
@@ -117,23 +117,63 @@ The dashboard lives in `frontend/` and is served by FastAPI static routing or ng
 Customize styles in `frontend/style.css` and behaviors in `frontend/script.js`; the template uses Jinja2 when served via FastAPI.
 
 ## Models & Training
-Pretrained RandomForest and DNN artifacts ship in `models/`. To retrain:
-1) Prepare datasets (KDD Cup 99 or CICIDS) under `models/training_scripts/data/raw/`.  
+Pretrained XGBoost artifacts ship in `models/`. To retrain:
+1) Prepare the CICIDS dataset under `models/training_scripts/data/raw/`.  
 2) Run preprocessing:
 ```bash
-python models/training_scripts/preprocess_kdd.py --dataset kdd_10 --output-dir models/training_scripts/data/processed
+python models/training_scripts/preprocess_cic.py --input-file models/training_scripts/data/raw/cicids/cic.csv --output-dir models/training_scripts/data/cic --time-split --time-col timestamp
 ```
 3) Train and emit new artifacts:
 ```bash
-python models/training_scripts/train_models.py --data-dir models/training_scripts/data/processed
+python models/training_scripts/train_models.py --data-dir models/training_scripts/data/cic --model-dir models/cic
 ```
-Copy the resulting `.pth`/`.pkl` files into `models/` so the detectors load them at runtime.
+Copy the resulting `attack_classifier_xgb.json` into `models/cic` so the detector loads it at runtime.
 
 ## Monitoring
 - Prometheus scrape config: `monitoring/prometheus.yml`
 - Grafana dashboard JSON: `monitoring/grafana_dashboard.json`
 - Alert rules: `monitoring/alert_rules.yml`
 Metrics come from `GET /metrics`; the compose stack wires Prometheus and Grafana automatically.
+
+## Production Readiness (Required)
+### Cross-dataset generalization
+Use the cross-dataset runner to train on one dataset and evaluate on another:
+```bash
+python models/training_scripts/cross_dataset_eval.py ^
+  --train-dir "models/training_scripts/data/cicids2018_pipeline/split" ^
+  --test-dir "models/training_scripts/data/cicids2018_pipeline/split" ^
+  --model-dir "models/cross_eval"
+```
+Replace `--test-dir` with a completely unseen dataset split (e.g., CICIDS 2017 or UNSW‑NB15) and compare recall.
+
+### RBAC + audit logging
+- `API_TOKEN` gives viewer access (read-only APIs, metrics, WS).
+- `ADMIN_TOKEN` required for block/unblock/isolate endpoints.
+- Audit logs go to `logs/audit.log` and Mongo `audit_logs` when available.
+### JWT auth (role claims)
+Set `JWT_SECRET` and optionally `JWT_ISSUER`/`JWT_AUDIENCE`, then request a token:
+```bash
+curl -X POST http://localhost:8000/api/token ^
+  -H "Authorization: Bearer <ADMIN_TOKEN>" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"subject\":\"reviewer\",\"role\":\"viewer\",\"ttl_seconds\":3600}"
+```
+Use the returned JWT as `Authorization: Bearer <token>` for viewer/admin access.
+
+### Production deployment guide (minimum bar)
+1) Terminate TLS at a reverse proxy (NGINX/Traefik); do not expose uvicorn directly.
+2) Store tokens in a secrets manager; avoid committing `.env` to VCS.
+3) Enforce ingress rate limiting for `/ws`, `/api/login`, `/api/simulate-attack`.
+4) Run multiple backend instances behind a load balancer; centralize cache in Redis.
+5) Use managed MongoDB with backups and TTL indexes for blocklists/audits.
+6) Prometheus uses `monitoring/ids_bearer_token` to scrape `/metrics`.
+7) Schedule periodic retraining + drift evaluation; update `model_card.md`.
+
+### Drift retraining workflow
+Run the drift retraining job (checks for recent drift alerts; use `--force` to retrain anyway):
+```bash
+python models/training_scripts/retrain_on_drift.py --mongo-uri "mongodb://localhost:27017/ids" --lookback-hours 24
+```
 
 ## Testing
 Run the suite from the repo root (tests add `backend/` to `PYTHONPATH`):

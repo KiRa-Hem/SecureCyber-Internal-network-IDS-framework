@@ -1,0 +1,16 @@
+{
+  "generated_at": "2026-01-28T03:13:46.803988Z",
+  "model_dir": "models\\cicids2018_packet",
+  "reports": [
+    {
+      "dataset": "models\\training_scripts\\data\\raw\\CICIDS 2018",
+      "output": "models\\cicids2018_packet\\CICIDS 2018_cross_eval.json",
+      "status": 0
+    },
+    {
+      "dataset": "models\\training_scripts\\data\\raw\\cicids",
+      "output": "models\\cicids2018_packet\\cicids_cross_eval.json",
+      "status": 0
+    }
+  ]
+}

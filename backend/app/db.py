@@ -101,12 +101,14 @@ class DatabaseClient:
     ALERTS_COLLECTION = "alerts"
     BLOCKLIST_COLLECTION = "blocklist"
     ISOLATION_COLLECTION = "isolated_nodes"
+    AUDIT_COLLECTION = "audit_logs"
 
     def __init__(self, mongo: MongoDB):
         self.mongo = mongo
         self._memory_alerts: List[Dict[str, Any]] = []
         self._memory_blocklist: Dict[str, Dict[str, Any]] = {}
         self._memory_isolated: Dict[str, Dict[str, Any]] = {}
+        self._memory_audit: List[Dict[str, Any]] = []
 
     def _use_memory(self) -> bool:
         return not self.mongo.ensure_connection()
@@ -123,6 +125,19 @@ class DatabaseClient:
             logger.warning("MongoDB insert failed (%s). Using in-memory alert storage.", exc)
             self.mongo.close()
             self._memory_alerts.append(document)
+
+    def store_audit(self, entry: Dict[str, Any]):
+        document = entry.copy()
+        document.setdefault("timestamp", int(time.time()))
+        if self._use_memory():
+            self._memory_audit.append(document)
+            return
+        try:
+            self.mongo.insert_one(self.AUDIT_COLLECTION, document)
+        except Exception as exc:
+            logger.warning("MongoDB audit insert failed (%s). Using in-memory audit.", exc)
+            self.mongo.close()
+            self._memory_audit.append(document)
 
     def add_to_blocklist(self, ip: str, reason: str, ttl_seconds: int):
         expires = int(time.time()) + ttl_seconds
@@ -323,6 +338,10 @@ def init_db():
         isolation_collection = mongodb.get_collection(DatabaseClient.ISOLATION_COLLECTION)
         isolation_collection.create_index("node_id", unique=True)
         isolation_collection.create_index("expires_at")
+
+        audit_collection = mongodb.get_collection(DatabaseClient.AUDIT_COLLECTION)
+        audit_collection.create_index([("timestamp", -1)])
+        audit_collection.create_index([("event_type", 1)])
 
         logger.info("Database initialized successfully")
         return True

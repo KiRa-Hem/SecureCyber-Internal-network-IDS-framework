@@ -1,0 +1,15 @@
+{
+  "active": "cicids2018_packet",
+  "profiles": {
+    "cic": {
+      "path": "cic",
+      "feature_schema": "cic",
+      "description": "CICIDS flow model profile"
+    },
+    "cicids2018_packet": {
+      "path": "cicids2018_packet",
+      "feature_schema": "packet",
+      "description": "CICIDS 2018 packet-level model profile"
+    }
+  }
+}

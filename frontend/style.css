@@ -78,34 +78,6 @@ body {
     border: var(--glass-border);
     border-radius: 8px;
     backdrop-filter: blur(10px);
-    position: relative;
-    z-index: 20;
-}
-
-.header-actions {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    position: relative;
-    z-index: 30;
-}
-
-.header-link {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--accent-purple);
-    text-decoration: none;
-    padding: 6px 12px;
-    border: 1px solid rgba(157, 78, 221, 0.4);
-    border-radius: 4px;
-    background: rgba(157, 78, 221, 0.12);
-    transition: all 0.2s;
-}
-
-.header-link:hover {
-    background: rgba(157, 78, 221, 0.2);
-    box-shadow: var(--glow-purple);
 }
 
 .logo {
@@ -165,18 +137,12 @@ body {
 }
 
 .left-panel {
-    display: grid;
-    grid-template-rows: repeat(4, minmax(0, 1fr));
-    width: 40%;
-    gap: 10px;
-    overflow: hidden;
-    padding-right: 5px;
-}
-
-.left-panel .panel {
-    height: 100%;
     display: flex;
     flex-direction: column;
+    width: 40%;
+    gap: 10px;
+    overflow-y: auto;
+    padding-right: 5px;
 }
 
 .right-panel {
@@ -224,18 +190,6 @@ body {
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
-}
-
-.control-btn .icon {
-    font-family: 'Roboto Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-}
-
-.control-btn.is-active {
-    background: rgba(0, 255, 255, 0.25);
-    box-shadow: var(--glow-cyan);
 }
 
 .control-btn:hover {
@@ -365,8 +319,8 @@ body {
 
 /* Inspector Panel */
 .inspector-panel {
-    flex: 1;
-    min-height: 0;
+    flex: 0 0 auto;
+    max-height: 200px;
 }
 
 .inspector-status {
@@ -377,8 +331,6 @@ body {
 .inspector-content {
     padding: 10px;
     font-size: 12px;
-    flex: 1;
-    overflow-y: auto;
 }
 
 .empty-state {
@@ -417,15 +369,13 @@ body {
 
 /* Node Details Panel */
 .node-details-panel {
-    flex: 1;
-    min-height: 0;
+    flex: 0 0 auto;
+    max-height: 200px;
 }
 
 .node-details-content {
     padding: 10px;
     font-size: 12px;
-    flex: 1;
-    overflow-y: auto;
 }
 
 .node-detail {
@@ -447,8 +397,6 @@ body {
     height: 100%;
     display: flex;
     flex-direction: column;
-    position: relative;
-    z-index: 1;
 }
 
 .network-viewport {
@@ -456,23 +404,23 @@ body {
     position: relative;
     background: radial-gradient(ellipse at center, rgba(0, 20, 40, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%);
     overflow: hidden;
-    cursor: grab;
-}
-
-.network-viewport.is-dragging {
-    cursor: grabbing;
-}
-
-.network-viewport canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
 }
 
 .network-controls {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.speed-control {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+}
+
+#speed-slider {
+    width: 80px;
 }
 
 .network-legend {
@@ -647,172 +595,6 @@ body {
 .modal-btn.block:hover {
     background: rgba(255, 0, 64, 0.2);
     box-shadow: var(--glow-red);
-}
-
-/* Login demo page */
-.login-body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
-    overflow: auto;
-    background: radial-gradient(circle at top, rgba(0, 255, 255, 0.08), transparent 55%),
-        radial-gradient(circle at bottom, rgba(157, 78, 221, 0.12), transparent 60%),
-        var(--bg-primary);
-}
-
-.login-shell {
-    width: min(520px, 100%);
-}
-
-.login-card {
-    background: var(--glass-bg);
-    border: var(--glass-border);
-    border-radius: 12px;
-    padding: 28px;
-    backdrop-filter: blur(12px);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-}
-
-.login-card h1 {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 24px;
-    margin-bottom: 8px;
-}
-
-.login-card p {
-    color: var(--text-secondary);
-    font-size: 13px;
-    margin-bottom: 20px;
-    line-height: 1.4;
-}
-
-.login-form {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-
-.login-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    font-size: 12px;
-    color: var(--text-secondary);
-}
-
-.login-field input {
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(0, 255, 255, 0.25);
-    border-radius: 6px;
-    padding: 10px 12px;
-    color: var(--text-primary);
-    font-family: 'Roboto Mono', monospace;
-}
-
-.login-field input:focus {
-    outline: none;
-    border-color: rgba(0, 255, 255, 0.6);
-    box-shadow: var(--glow-cyan);
-}
-
-.login-btn {
-    margin-top: 6px;
-    padding: 10px 14px;
-    border-radius: 6px;
-    border: 1px solid rgba(0, 255, 255, 0.4);
-    background: rgba(0, 255, 255, 0.12);
-    color: var(--accent-cyan);
-    font-family: 'Orbitron', sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.login-btn:hover {
-    background: rgba(0, 255, 255, 0.2);
-    box-shadow: var(--glow-cyan);
-}
-
-.login-status {
-    margin-top: 14px;
-    padding: 10px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    min-height: 36px;
-    background: rgba(0, 0, 0, 0.35);
-    border: 1px dashed rgba(255, 255, 255, 0.1);
-    color: var(--text-secondary);
-}
-
-.login-status.ok {
-    color: var(--accent-green);
-    border-color: rgba(0, 255, 136, 0.4);
-}
-
-.login-status.warn {
-    color: var(--accent-yellow);
-    border-color: rgba(255, 190, 11, 0.5);
-}
-
-.login-status.blocked {
-    color: var(--accent-red);
-    border-color: rgba(255, 0, 64, 0.5);
-}
-
-.login-links {
-    margin-top: 16px;
-    font-size: 12px;
-}
-
-.login-links a {
-    color: var(--accent-purple);
-    text-decoration: none;
-}
-
-.login-links a:hover {
-    text-decoration: underline;
-}
-
-@media (max-width: 1200px) {
-    body {
-        overflow: auto;
-    }
-
-    .dashboard-content {
-        flex-direction: column;
-    }
-
-    .left-panel,
-    .right-panel {
-        width: 100%;
-    }
-
-    .left-panel {
-        grid-template-rows: repeat(4, minmax(180px, auto));
-    }
-
-    .right-panel {
-        min-height: 360px;
-    }
-}
-
-@media (max-width: 900px) {
-    .dashboard-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-    }
-
-    .header-actions {
-        width: 100%;
-        justify-content: space-between;
-    }
-
-    .logo h1 {
-        font-size: 20px;
-    }
 }
 
 /* Scrollbar Styling */

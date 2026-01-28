@@ -258,80 +258,22 @@ Write-ColorOutput $YELLOW "Make sure your IP address is whitelisted in MongoDB A
 
 # Prepare dataset
 if (-not $SkipDataset) {
-    $prepareData = Read-Host "Download and prepare KDD dataset? (y/n)"
+    $prepareData = Read-Host "Preprocess existing CICIDS dataset? (y/n)"
     if ($prepareData -eq 'y') {
         Write-ColorOutput $BLUE "Preparing dataset..."
-        
-        # Define dataset path and URL
-        $datasetPath = "models\training_scripts\data\kddcup.data_10_percent"
-        $datasetUrl = "http://kdd.ics.uci.edu/databases/kddcup99/kddcup.data_10_percent.gz"
-        
-        # Check if dataset already exists
+        $datasetPath = "models\training_scripts\data\raw\cicids\cic.csv"
         if (-not (Test-Path $datasetPath)) {
-            Write-Host "KDD dataset not found. Attempting to download..." -ForegroundColor Yellow
-            
-            try {
-                # Create data directory if needed
-                $dataDir = Split-Path $datasetPath -Parent
-                if (-not (Test-Path $dataDir)) { 
-                    New-Item -ItemType Directory -Path $dataDir | Out-Null 
-                }
-                
-                # Download and extract
-                Invoke-WebRequest -Uri $datasetUrl -OutFile "$datasetPath.gz"
-                
-                # Extract gz file (Windows compatible method)
-                $gzipPath = "$datasetPath.gz"
-                $outputPath = $datasetPath
-                
-                # Use .NET GZipStream for extraction
-                try {
-                    $inputStream = New-Object System.IO.FileStream($gzipPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read)
-                    $outputStream = New-Object System.IO.FileStream($outputPath, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write)
-                    $gzipStream = New-Object System.IO.Compression.GZipStream($inputStream, [System.IO.Compression.CompressionMode]::Decompress)
-                    
-                    $buffer = New-Object byte[](1024)
-                    while (($count = $gzipStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
-                        $outputStream.Write($buffer, 0, $count)
-                    }
-                    
-                    $gzipStream.Close()
-                    $outputStream.Close()
-                    $inputStream.Close()
-                    
-                    Remove-Item $gzipPath -Force
-                    Write-Host "Dataset downloaded and extracted successfully." -ForegroundColor Green
-                }
-                catch {
-                    Write-Host "Extraction failed: $_" -ForegroundColor Red
-                    # Clean up
-                    if ($inputStream) { $inputStream.Close() }
-                    if ($outputStream) { $outputStream.Close() }
-                    if ($gzipStream) { $gzipStream.Close() }
-                    throw
-                }
-            }
-            catch {
-                Write-Host "Download failed: $_" -ForegroundColor Red
-                Write-Host "Please manually download kddcup.data_10_percent_corrected and place it in:" -ForegroundColor Yellow
-                Write-Host "$dataDir" -ForegroundColor Cyan
-                Write-Host "Then rename it to 'kddcup.data_10_percent'" -ForegroundColor Yellow
-                exit 1
-            }
+            Write-Host "CICIDS dataset not found at $datasetPath." -ForegroundColor Yellow
+            Write-Host "Please place the dataset file there before continuing." -ForegroundColor Yellow
+            exit 1
         }
-        else {
-            Write-Host "KDD dataset found at $datasetPath" -ForegroundColor Green
-        }
-        
-        # Run preprocessing
         Set-Location models\training_scripts
         Write-Host "Running preprocessing script..." -ForegroundColor Yellow
-        python preprocess_kdd.py
+        python preprocess_cic.py --input-file "$datasetPath" --output-dir "data\cic" --time-split --time-col timestamp
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Preprocessing failed. Continuing with raw dataset." -ForegroundColor Red
         }
         Set-Location ..\..
-        
         Write-ColorOutput $GREEN "Dataset preparation complete"
     }
 }
@@ -342,7 +284,7 @@ if (-not $SkipTraining) {
     if ($trainModels -eq 'y') {
         Write-ColorOutput $BLUE "Training ML models..."
         Set-Location models\training_scripts
-        python train_models.py
+        python train_models.py --data-dir "data\cic" --model-dir "..\..\models\cic"
         Set-Location ..\..
         Write-ColorOutput $GREEN "ML models trained successfully"
     }

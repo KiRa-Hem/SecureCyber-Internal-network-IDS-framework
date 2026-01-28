@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ../backend
+    environment:
+      - MONGODB_URI=${MONGODB_URI}
+      - MONGO_DB=${MONGO_DB:-ids}
+      - API_TOKEN=${API_TOKEN}
+      - ADMIN_TOKEN=${ADMIN_TOKEN}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ISSUER=${JWT_ISSUER:-securecyber-ids}
+      - JWT_AUDIENCE=${JWT_AUDIENCE:-securecyber-ui}
+      - JWT_EXP_SECONDS=${JWT_EXP_SECONDS:-3600}
+      - ENABLE_PACKET_CAPTURE=${ENABLE_PACKET_CAPTURE:-false}
+      - NETWORK_INTERFACE=${NETWORK_INTERFACE:-auto}
+      - CAPTURE_FILTER=${CAPTURE_FILTER:-tcp or udp and not multicast and not broadcast}
+      - CONFIDENCE_THRESHOLD=${CONFIDENCE_THRESHOLD:-0.98}
+      - ANOMALY_SCORE_THRESHOLD=${ANOMALY_SCORE_THRESHOLD:--0.15}
+      - ALERT_FUSION_ENABLED=${ALERT_FUSION_ENABLED:-true}
+      - ALERT_DEDUP_WINDOW_SECONDS=${ALERT_DEDUP_WINDOW_SECONDS:-30}
+    volumes:
+      - ../models:/models:ro
+      - ../backend/logs:/app/logs
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../frontend:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend
+    restart: unless-stopped

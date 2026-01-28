@@ -19,9 +19,7 @@
                 <div class="status-indicator online"></div>
                 <span class="status-text">SYSTEMS ONLINE</span>
             </div>
-            <div class="header-actions">
-                <div class="datetime" id="datetime"></div>
-            </div>
+            <div class="datetime" id="datetime"></div>
         </header>
         
         <!-- Main Content -->
@@ -34,10 +32,10 @@
                         <h2>NETWORK STATUS</h2>
                         <div class="panel-controls">
                             <button class="control-btn" id="pause-btn" title="Pause/Resume">
-                                <span class="icon">||</span>
+                                <span class="icon">⏸</span>
                             </button>
                             <button class="control-btn" id="step-btn" title="Step Event">
-                                <span class="icon">></span>
+                                <span class="icon">⏭</span>
                             </button>
                         </div>
                     </div>
@@ -90,7 +88,7 @@
                 <div class="panel node-details-panel">
                     <div class="panel-header">
                         <h2>NODE INSPECTOR</h2>
-                        <button class="close-btn" id="close-node-details">x</button>
+                        <button class="close-btn" id="close-node-details">×</button>
                     </div>
                     <div class="node-details-content" id="node-details-content">
                         <div class="empty-state">Click a node to view details</div>
@@ -105,8 +103,12 @@
                         <h2>NETWORK TOPOLOGY</h2>
                         <div class="network-controls">
                             <button class="control-btn" id="toggle-packets" title="Toggle Packet Trails">
-                                <span class="icon">net</span>
+                                <span class="icon">✦</span>
                             </button>
+                            <div class="speed-control">
+                                <label for="speed-slider">Speed:</label>
+                                <input type="range" id="speed-slider" min="0.5" max="3" step="0.5" value="1">
+                            </div>
                         </div>
                     </div>
                     <div class="network-viewport" id="network-viewport">
@@ -147,7 +149,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2>SECURITY ALERT</h2>
-                    <button class="close-btn" id="close-modal">x</button>
+                    <button class="close-btn" id="close-modal">×</button>
                 </div>
                 <div class="modal-body" id="modal-body">
                     <!-- Alert details will be inserted here -->

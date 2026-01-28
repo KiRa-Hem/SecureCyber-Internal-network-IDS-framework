@@ -249,12 +249,8 @@
             "legendFormat": "Rule-based"
           },
           {
-            "expr": "rate(ids_packets_processed_total{detector=\"random_forest\"}[5m])",
-            "legendFormat": "Random Forest"
-          },
-          {
-            "expr": "rate(ids_packets_processed_total{detector=\"dnn\"}[5m])",
-            "legendFormat": "DNN"
+            "expr": "rate(ids_packets_processed_total{detector=\"xgboost\"}[5m])",
+            "legendFormat": "XGBoost"
           }
         ],
         "fieldConfig": {

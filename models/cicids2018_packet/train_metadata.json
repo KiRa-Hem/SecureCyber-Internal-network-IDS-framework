@@ -1,0 +1,29 @@
+{
+  "model_path": "C:\\Users\\hemes\\OneDrive\\Desktop\\IDS\\models\\cicids2018_packet\\attack_classifier_xgb.json",
+  "encoder_binary_path": "C:\\Users\\hemes\\OneDrive\\Desktop\\IDS\\models\\cicids2018_packet\\le_binary.pkl",
+  "encoder_category_path": null,
+  "classes": [
+    0,
+    1
+  ],
+  "target_type": "binary",
+  "feature_columns": [
+    "Dst Port",
+    "Protocol",
+    "TotLen Fwd Pkts",
+    "Fwd Pkt Len Max",
+    "Fwd Pkt Len Mean",
+    "Flow Byts/s",
+    "PSH Flag Cnt",
+    "URG Flag Cnt",
+    "FIN Flag Cnt",
+    "SYN Flag Cnt",
+    "RST Flag Cnt",
+    "ACK Flag Cnt",
+    "Fwd Header Len",
+    "Fwd Pkt Len Min",
+    "Fwd Pkt Len Std",
+    "Down/Up Ratio",
+    "Fwd Pkts/s"
+  ]
+}

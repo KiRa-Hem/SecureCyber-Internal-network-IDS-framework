@@ -15,16 +15,18 @@ from pydantic import BaseModel
 
 from app.config import settings
 from app.db import init_db, db
-from app.packet_capture import PacketCapture
 from app.sensors import SensorWorker
 from app.mitigation import mitigation
 from app.metrics import metrics_collector, packets_processed, alerts_generated
 from app.cache import cache_manager
 from app.correlator import correlator
 from app.detectors.rule_based import RuleBasedDetector
-from app.detectors.random_forest import RandomForestDetector
-from app.detectors.dnn import DNNDetector
+from app.detectors.xgboost_detector import XGBoostDetector
 from app.detectors.ddos_detector import DoSDetector
+from app.detectors.isolation_forest import IsolationForestDetector
+from app.rate_limit import rate_limiter
+from app.audit import audit_event
+from app.auth import get_role_from_token, create_jwt
 from prometheus_client import generate_latest
 
 # Paths
@@ -58,6 +60,11 @@ class SimulateAttackRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+class TokenRequest(BaseModel):
+    subject: str
+    role: str = "viewer"
+    ttl_seconds: Optional[int] = None
 
 # WebSocket connection manager
 class ConnectionManager:
@@ -137,6 +144,51 @@ def require_api_key(
     if not token or token != settings.API_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
+def _resolve_role(authorization: Optional[str], x_api_key: Optional[str]) -> Optional[str]:
+    token = _extract_token(authorization, x_api_key)
+    if not token:
+        return None
+    if settings.ADMIN_TOKEN and token == settings.ADMIN_TOKEN:
+        return "admin"
+    if settings.API_TOKEN and token == settings.API_TOKEN:
+        if not settings.ADMIN_TOKEN:
+            return "admin"
+        return "viewer"
+    jwt_role = get_role_from_token(token)
+    if jwt_role:
+        return jwt_role
+    return None
+
+def require_role(role: str):
+    def _checker(
+        authorization: Optional[str] = Header(None),
+        x_api_key: Optional[str] = Header(None),
+    ):
+        if not settings.API_TOKEN and not settings.ADMIN_TOKEN:
+            return
+        resolved = _resolve_role(authorization, x_api_key)
+        if resolved is None:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        if role == "admin" and resolved != "admin":
+            raise HTTPException(status_code=403, detail="Forbidden")
+    return _checker
+
+def _rate_limit(request: Request, action: str):
+    try:
+        limit = int(getattr(settings, "RATE_LIMIT_REQUESTS", 0) or 0)
+    except (TypeError, ValueError):
+        limit = 0
+    if limit <= 0:
+        return
+    ip = request.client.host if request.client else "unknown"
+    allowed, _reset, _remaining = rate_limiter.check(
+        f"{action}:{ip}",
+        limit,
+        int(getattr(settings, "RATE_LIMIT_WINDOW", 60) or 60),
+    )
+    if not allowed:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
 async def require_api_key_ws(websocket: WebSocket) -> bool:
     if not settings.API_TOKEN:
         return True
@@ -149,6 +201,20 @@ async def require_api_key_ws(websocket: WebSocket) -> bool:
     if not token or token != settings.API_TOKEN:
         await websocket.close(code=1008)
         return False
+    try:
+        limit = int(getattr(settings, "RATE_LIMIT_REQUESTS", 0) or 0)
+    except (TypeError, ValueError):
+        limit = 0
+    if limit > 0:
+        ip = websocket.client.host if websocket.client else "unknown"
+        allowed, _reset, _remaining = rate_limiter.check(
+            f"ws:{ip}",
+            limit,
+            int(getattr(settings, "RATE_LIMIT_WINDOW", 60) or 60),
+        )
+        if not allowed:
+            await websocket.close(code=1008)
+            return False
     return True
 
 SIMULATION_TEMPLATES = {
@@ -237,19 +303,13 @@ async def lifespan(app: FastAPI):
     global detectors
     detectors = {
         "rule_based": RuleBasedDetector(),
-        "random_forest": RandomForestDetector(),
-        "dnn": DNNDetector(),
-        "dos": DoSDetector()
+        "xgboost": XGBoostDetector(),
+        "dos": DoSDetector(),
     }
+    if settings.enable_anomaly_detection:
+        detectors["anomaly"] = IsolationForestDetector()
     
-    # Initialize packet capture if enabled
-    global packet_capture
-    if settings.enable_packet_capture:
-        packet_capture = PacketCapture(
-            interface=settings.network_interface,
-            capture_filter=settings.capture_filter
-        )
-        packet_capture.start_capture()
+    # Packet capture is handled by the primary sensor worker to avoid duplicates.
     
     # Start sensor workers
     for location in settings.sensor_locations:
@@ -264,10 +324,6 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     print("Shutting down SecureCyber IDS/IPS System...")
-    
-    # Stop packet capture
-    if packet_capture:
-        packet_capture.stop_capture()
     
     # Stop sensor workers
     for worker in sensor_workers.values():
@@ -299,23 +355,38 @@ async def dashboard(request: Request):
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
+    capture_active = False
+    if packet_capture and getattr(packet_capture, "running", False):
+        capture_active = True
+    if not capture_active:
+        capture_active = any(
+            getattr(worker, "packet_capture", None)
+            and getattr(worker.packet_capture, "running", False)
+            for worker in sensor_workers.values()
+        )
     return {
         "status": "healthy",
         "timestamp": int(time.time()),
         "version": "2.0.0",
-        "packet_capture": "enabled" if packet_capture else "disabled",
+        "packet_capture": "enabled" if capture_active else "disabled",
         "detectors": list(detectors.keys())
     }
 
 @app.post("/api/simulate-attack", dependencies=[Depends(require_api_key)])
-async def simulate_attack(request: SimulateAttackRequest):
+async def simulate_attack(request: SimulateAttackRequest, http_request: Request):
     """Simulate an attack for testing purposes."""
+    _rate_limit(http_request, "simulate")
     if not settings.enable_simulation:
         raise HTTPException(status_code=404, detail="Not found")
 
     template = _resolve_simulation_template(request.attack_type)
     payload = request.payload or template.get("payload", "")
     burst = int(template.get("burst", 1))
+    proto_value = str(template.get("protocol", "tcp")).upper()
+    flags = "S" if request.attack_type.lower() in {"ddos", "dos"} else "PA"
+    header_len = 20 if proto_value == "TCP" else 8
+    payload_len = len(payload) if payload else 0
+    size = max(60, header_len + payload_len)
 
     packet = {
         "timestamp": time.time(),
@@ -324,10 +395,14 @@ async def simulate_attack(request: SimulateAttackRequest):
         "src_ip": request.source_ip,
         "dst_ip": request.target_ip,
         "protocol": template.get("protocol", "tcp"),
-        "protocol_name": str(template.get("protocol", "tcp")).upper(),
+        "protocol_name": proto_value,
         "src_port": 4242,
         "dst_port": template.get("dst_port", 80),
         "payload": payload,
+        "flags": flags,
+        "header_len": header_len,
+        "payload_len": payload_len,
+        "size": size,
         "service": template.get("service"),
         "path": ["router-1", "fw-1", "switch-1", "web-01"],
         "attacker_node": "router-1",
@@ -342,11 +417,18 @@ async def simulate_attack(request: SimulateAttackRequest):
     for _ in range(max(burst, 1)):
         worker._process_packet(packet)
 
+    audit_event(
+        "simulate_attack",
+        actor="api",
+        details={"attack_type": request.attack_type, "source_ip": request.source_ip, "target_ip": request.target_ip},
+        ip=http_request.client.host if http_request.client else None,
+    )
     return {"status": "success", "message": "Attack simulated"}
 
 @app.post("/api/login", dependencies=[Depends(require_api_key)])
 async def login(request: LoginRequest, http_request: Request):
     """Demo login endpoint that feeds payloads into the signature engine."""
+    _rate_limit(http_request, "login")
     payload = f"username={request.username}&password={request.password}"
     source_ip = http_request.client.host if http_request.client else "unknown"
     dest_ip = http_request.url.hostname or "127.0.0.1"
@@ -374,59 +456,108 @@ async def login(request: LoginRequest, http_request: Request):
         alert["payload_snippet"] = payload[:200]
         metrics_collector.record_alert(alert["attack_types"][0] if alert["attack_types"] else "unknown")
         await manager.broadcast_alert(alert)
+        audit_event(
+            "login_attack_detected",
+            actor="api",
+            details={"username": request.username, "source_ip": source_ip},
+            ip=http_request.client.host if http_request.client else None,
+        )
         return {"status": "blocked", "alert_detected": True}
 
     is_valid = request.username == "admin" and request.password == "admin123"
+    audit_event(
+        "login_attempt",
+        actor="api",
+        details={"username": request.username, "status": "ok" if is_valid else "invalid"},
+        ip=http_request.client.host if http_request.client else None,
+    )
     return {"status": "ok" if is_valid else "invalid", "alert_detected": False}
 
-@app.get("/api/blocklist", dependencies=[Depends(require_api_key)])
+@app.post("/api/token", dependencies=[Depends(require_role("admin"))])
+async def issue_token(request: TokenRequest, http_request: Request):
+    """Issue a signed JWT for viewer/admin access."""
+    ttl = request.ttl_seconds or settings.JWT_EXP_SECONDS
+    token = create_jwt(request.subject, request.role, ttl)
+    audit_event(
+        "issue_jwt",
+        actor="admin",
+        details={"subject": request.subject, "role": request.role, "ttl_seconds": ttl},
+        ip=http_request.client.host if http_request.client else None,
+    )
+    return {"token": token, "expires_in": ttl, "role": request.role}
+
+@app.get("/api/blocklist", dependencies=[Depends(require_role("viewer"))])
 async def get_blocklist():
     """Get the current blocklist."""
     return {"blocklist": mitigation.get_blocklist()}
 
-@app.get("/api/isolated-nodes", dependencies=[Depends(require_api_key)])
+@app.get("/api/isolated-nodes", dependencies=[Depends(require_role("viewer"))])
 async def get_isolated_nodes():
     """Get the currently isolated nodes."""
     return {"isolated_nodes": mitigation.get_isolated_nodes()}
 
-@app.post("/api/block-ip", dependencies=[Depends(require_api_key)])
-async def block_ip(request: BlockIPRequest):
+@app.post("/api/block-ip", dependencies=[Depends(require_role("admin"))])
+async def block_ip(request: BlockIPRequest, http_request: Request):
     """Block an IP address."""
     if settings.enable_real_mitigation and settings.mitigation_confirmation_token:
         print(f"WARNING: Real mitigation enabled. Blocking IP: {request.ip}")
     
     success = mitigation.block_ip(request.ip, request.reason, request.ttl_seconds)
     if success:
+        audit_event(
+            "block_ip",
+            actor="admin",
+            details={"ip": request.ip, "reason": request.reason, "ttl_seconds": request.ttl_seconds},
+            ip=http_request.client.host if http_request.client else None,
+        )
         return {"status": "success", "message": f"IP {request.ip} blocked"}
     else:
         raise HTTPException(status_code=400, detail="Failed to block IP")
 
-@app.post("/api/unblock-ip", dependencies=[Depends(require_api_key)])
-async def unblock_ip(request: UnblockIPRequest):
+@app.post("/api/unblock-ip", dependencies=[Depends(require_role("admin"))])
+async def unblock_ip(request: UnblockIPRequest, http_request: Request):
     """Unblock an IP address."""
     success = mitigation.unblock_ip(request.ip)
     if success:
+        audit_event(
+            "unblock_ip",
+            actor="admin",
+            details={"ip": request.ip},
+            ip=http_request.client.host if http_request.client else None,
+        )
         return {"status": "success", "message": f"IP {request.ip} unblocked"}
     else:
         raise HTTPException(status_code=400, detail="Failed to unblock IP")
 
-@app.post("/api/isolate-node", dependencies=[Depends(require_api_key)])
-async def isolate_node(request: IsolateNodeRequest):
+@app.post("/api/isolate-node", dependencies=[Depends(require_role("admin"))])
+async def isolate_node(request: IsolateNodeRequest, http_request: Request):
     """Isolate a node."""
     success = mitigation.isolate_node(request.node_id, request.reason, request.ttl_seconds)
     if success:
+        audit_event(
+            "isolate_node",
+            actor="admin",
+            details={"node_id": request.node_id, "reason": request.reason, "ttl_seconds": request.ttl_seconds},
+            ip=http_request.client.host if http_request.client else None,
+        )
         return {"status": "success", "message": f"Node {request.node_id} isolated"}
     raise HTTPException(status_code=400, detail="Failed to isolate node")
 
-@app.post("/api/remove-isolation", dependencies=[Depends(require_api_key)])
-async def remove_isolation(request: RemoveIsolationRequest):
+@app.post("/api/remove-isolation", dependencies=[Depends(require_role("admin"))])
+async def remove_isolation(request: RemoveIsolationRequest, http_request: Request):
     """Remove isolation from a node."""
     success = mitigation.remove_isolation(request.node_id)
     if success:
+        audit_event(
+            "remove_isolation",
+            actor="admin",
+            details={"node_id": request.node_id},
+            ip=http_request.client.host if http_request.client else None,
+        )
         return {"status": "success", "message": f"Node {request.node_id} isolation removed"}
     raise HTTPException(status_code=400, detail="Failed to remove isolation")
 
-@app.get("/api/alerts", dependencies=[Depends(require_api_key)])
+@app.get("/api/alerts", dependencies=[Depends(require_role("viewer"))])
 async def get_alerts(limit: int = 10, offset: int = 0):
     """Get recent alerts."""
     alerts = db.get_alerts(limit=limit, offset=offset)
@@ -436,7 +567,7 @@ async def get_alerts(limit: int = 10, offset: int = 0):
         "total": total
     }
 
-@app.get("/api/stats", dependencies=[Depends(require_api_key)])
+@app.get("/api/stats", dependencies=[Depends(require_role("viewer"))])
 async def get_stats():
     """Get current statistics."""
     return {
@@ -470,7 +601,7 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 # Metrics endpoint for Prometheus
-@app.get("/metrics", dependencies=[Depends(require_api_key)])
+@app.get("/metrics", dependencies=[Depends(require_role("viewer"))])
 async def metrics():
     """Prometheus metrics endpoint."""
     data = metrics_collector.get_metrics()

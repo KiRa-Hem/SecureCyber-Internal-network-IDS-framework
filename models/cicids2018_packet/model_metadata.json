@@ -1,0 +1,141 @@
+{
+  "dataset": "cicids2018_packet",
+  "feature_columns": [
+    "Dst Port",
+    "Protocol",
+    "TotLen Fwd Pkts",
+    "Fwd Pkt Len Max",
+    "Fwd Pkt Len Mean",
+    "Flow Byts/s",
+    "PSH Flag Cnt",
+    "URG Flag Cnt",
+    "FIN Flag Cnt",
+    "SYN Flag Cnt",
+    "RST Flag Cnt",
+    "ACK Flag Cnt",
+    "Fwd Header Len",
+    "Fwd Pkt Len Min",
+    "Fwd Pkt Len Std",
+    "Down/Up Ratio",
+    "Fwd Pkts/s"
+  ],
+  "categorical_features": [],
+  "split_method": "random",
+  "target_type": "binary",
+  "model_type": "xgboost",
+  "use_simplified": true,
+  "generated_at": "2026-01-27T15:22:56.453179Z",
+  "thresholds": {
+    "isolation_forest": {
+      "score_threshold": -3.299129802084456e-17,
+      "contamination": 0.01
+    },
+    "xgboost": {
+      "best_f1_threshold": 4.733551395474933e-05
+    }
+  },
+  "baseline_stats": {
+    "Dst Port": {
+      "mean": 1874.2718505859375,
+      "std": 9467.44921875,
+      "min": -80.0,
+      "max": 65453.0
+    },
+    "Protocol": {
+      "mean": 0.7780982255935669,
+      "std": 2.8818111419677734,
+      "min": -6.0,
+      "max": 11.0
+    },
+    "TotLen Fwd Pkts": {
+      "mean": 1553.9576416015625,
+      "std": 11978.9580078125,
+      "min": 0.0,
+      "max": 235907.8125
+    },
+    "Fwd Pkt Len Max": {
+      "mean": 2.9117634296417236,
+      "std": 6.234860897064209,
+      "min": 0.0,
+      "max": 44.24242401123047
+    },
+    "Fwd Pkt Len Mean": {
+      "mean": 0.9275945425033569,
+      "std": 1.9982672929763794,
+      "min": 0.0,
+      "max": 45.27430725097656
+    },
+    "Flow Byts/s": {
+      "mean": 112.68244171142578,
+      "std": 2932.8232421875,
+      "min": 0.0,
+      "max": 643420.875
+    },
+    "PSH Flag Cnt": {
+      "mean": 0.44643014669418335,
+      "std": 0.49712198972702026,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "URG Flag Cnt": {
+      "mean": 0.011658277362585068,
+      "std": 0.10734226554632187,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "FIN Flag Cnt": {
+      "mean": 0.0015865046298131347,
+      "std": 0.039799340069293976,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "SYN Flag Cnt": {
+      "mean": 0.014869260601699352,
+      "std": 0.12102960795164108,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "RST Flag Cnt": {
+      "mean": 0.18095223605632782,
+      "std": 0.38497859239578247,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "ACK Flag Cnt": {
+      "mean": 0.47623831033706665,
+      "std": 0.49943506717681885,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "Fwd Header Len": {
+      "mean": 505.3948059082031,
+      "std": 3930.76806640625,
+      "min": -1.875,
+      "max": 77405.375
+    },
+    "Fwd Pkt Len Min": {
+      "mean": 4.66408109664917,
+      "std": 32.47548294067383,
+      "min": 0.0,
+      "max": 1430.0
+    },
+    "Fwd Pkt Len Std": {
+      "mean": 3.558063507080078,
+      "std": 7.7150726318359375,
+      "min": 0.0,
+      "max": 89.4063720703125
+    },
+    "Down/Up Ratio": {
+      "mean": 0.42552289366722107,
+      "std": 0.5210967659950256,
+      "min": 0.0,
+      "max": 69.0
+    },
+    "Fwd Pkts/s": {
+      "mean": 21.679706573486328,
+      "std": 55.524085998535156,
+      "min": -0.04432648420333862,
+      "max": 948.5645751953125
+    }
+  }
+}

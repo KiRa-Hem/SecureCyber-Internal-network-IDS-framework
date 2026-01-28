@@ -37,3 +37,4 @@ logs/
 media/videos/
 frontend/smoke-frontend-*.err
 tmp_diag.py
+trash/

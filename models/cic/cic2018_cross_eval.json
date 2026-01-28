@@ -1,0 +1,234 @@
+{
+  "model_dir": "models\\cic",
+  "input_dir": "models\\training_scripts\\data\\raw\\CICIDS 2018",
+  "files": [
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-14-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-15-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-16-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-20-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-21-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-22-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-23-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-28-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\03-01-2018.csv",
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\03-02-2018.csv"
+  ],
+  "feature_columns": [
+    "dst_port",
+    "flow_duration",
+    "tot_fwd_pkts",
+    "tot_bwd_pkts",
+    "totlen_fwd_pkts",
+    "fwd_pkt_len_max",
+    "fwd_pkt_len_mean",
+    "fwd_pkt_len_std",
+    "bwd_pkt_len_max",
+    "flow_byts_s",
+    "flow_pkts_s",
+    "flow_iat_mean",
+    "flow_iat_std",
+    "flow_iat_max",
+    "flow_iat_min",
+    "fwd_iat_tot",
+    "fwd_iat_mean",
+    "fwd_iat_std",
+    "fwd_iat_max",
+    "fwd_iat_min",
+    "bwd_iat_tot",
+    "bwd_iat_min",
+    "fwd_header_len",
+    "bwd_header_len",
+    "fwd_pkts_s",
+    "bwd_pkts_s",
+    "pkt_len_max",
+    "psh_flag_cnt",
+    "ack_flag_cnt",
+    "urg_flag_cnt",
+    "down_up_ratio",
+    "init_fwd_win_byts",
+    "init_bwd_win_byts",
+    "fwd_seg_size_min"
+  ],
+  "total_rows": 16137183,
+  "dropped_rows": 95819,
+  "overall": {
+    "counts": {
+      "tp": 520905,
+      "tn": 13389704,
+      "fp": 545,
+      "fn": 2226029
+    },
+    "metrics": {
+      "accuracy": 0.862022138560367,
+      "precision": 0.9989548374724326,
+      "recall": 0.18963142179608247,
+      "f1": 0.3187538551161675
+    },
+    "roc_auc": null,
+    "pr_auc": null,
+    "auc_rows": 399865,
+    "auc_partial": true
+  },
+  "per_file": {
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-14-2018.csv": {
+      "rows": 1044751,
+      "dropped_rows": 3824,
+      "counts": {
+        "tp": 380943,
+        "tn": 663807,
+        "fp": 1,
+        "fn": 0
+      },
+      "metrics": {
+        "accuracy": 0.9999990428341299,
+        "precision": 0.9999973749422487,
+        "recall": 1.0,
+        "f1": 0.9999986874694016
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-15-2018.csv": {
+      "rows": 1040548,
+      "dropped_rows": 8027,
+      "counts": {
+        "tp": 0,
+        "tn": 988045,
+        "fp": 5,
+        "fn": 52498
+      },
+      "metrics": {
+        "accuracy": 0.949542933146765,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-16-2018.csv": {
+      "rows": 1048574,
+      "dropped_rows": 1,
+      "counts": {
+        "tp": 139890,
+        "tn": 446762,
+        "fp": 10,
+        "fn": 461912
+      },
+      "metrics": {
+        "accuracy": 0.5594760121841663,
+        "precision": 0.9999285203716941,
+        "recall": 0.2324518695517795,
+        "f1": 0.377213490053957
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-20-2018.csv": {
+      "rows": 7889295,
+      "dropped_rows": 59453,
+      "counts": {
+        "tp": 0,
+        "tn": 7312996,
+        "fp": 108,
+        "fn": 576191
+      },
+      "metrics": {
+        "accuracy": 0.9269517745248467,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-21-2018.csv": {
+      "rows": 1048575,
+      "dropped_rows": 0,
+      "counts": {
+        "tp": 0,
+        "tn": 360813,
+        "fp": 20,
+        "fn": 687742
+      },
+      "metrics": {
+        "accuracy": 0.3440984192833131,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-22-2018.csv": {
+      "rows": 1042965,
+      "dropped_rows": 5610,
+      "counts": {
+        "tp": 0,
+        "tn": 1042565,
+        "fp": 38,
+        "fn": 362
+      },
+      "metrics": {
+        "accuracy": 0.9996164780217937,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-23-2018.csv": {
+      "rows": 1042867,
+      "dropped_rows": 5708,
+      "counts": {
+        "tp": 1,
+        "tn": 1042276,
+        "fp": 25,
+        "fn": 565
+      },
+      "metrics": {
+        "accuracy": 0.9994342519228243,
+        "precision": 0.038461538461538464,
+        "recall": 0.0017667844522968198,
+        "f1": 0.003378378378378378
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\02-28-2018.csv": {
+      "rows": 606902,
+      "dropped_rows": 6202,
+      "counts": {
+        "tp": 11,
+        "tn": 538480,
+        "fp": 186,
+        "fn": 68225
+      },
+      "metrics": {
+        "accuracy": 0.8872783414785254,
+        "precision": 0.05583756345177665,
+        "recall": 0.00016120522891142507,
+        "f1": 0.00032148232577849874
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\03-01-2018.csv": {
+      "rows": 328181,
+      "dropped_rows": 2944,
+      "counts": {
+        "tp": 60,
+        "tn": 235626,
+        "fp": 152,
+        "fn": 92343
+      },
+      "metrics": {
+        "accuracy": 0.7181585771266465,
+        "precision": 0.2830188679245283,
+        "recall": 0.0006493295672218434,
+        "f1": 0.0012956864438805808
+      }
+    },
+    "models\\training_scripts\\data\\raw\\CICIDS 2018\\03-02-2018.csv": {
+      "rows": 1044525,
+      "dropped_rows": 4050,
+      "counts": {
+        "tp": 0,
+        "tn": 758334,
+        "fp": 0,
+        "fn": 286191
+      },
+      "metrics": {
+        "accuracy": 0.7260084727507718,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      }
+    }
+  }
+}

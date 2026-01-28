@@ -14,6 +14,7 @@ const dom = {
     inspectorContent: $('inspector-content'),
     nodeDetails: $('node-details-content'),
     networkViewport: $('network-viewport'),
+    speedSlider: $('speed-slider'),
     alertModal: $('alert-modal'),
     modalBody: $('modal-body')
 };
@@ -56,25 +57,22 @@ const QUICK_ATTACKS = [
 
 const NETWORK_DEFINITION = {
     nodes: [
-        { id: 'router-1', label: 'Edge Router', type: 'router', ip: '198.51.100.1', position: { x: 0, y: 0, z: -2 } },
-        { id: 'fw-1', label: 'Perimeter FW', type: 'firewall', ip: '198.51.100.2', position: { x: -3.5, y: 0, z: 0.5 } },
-        { id: 'fw-2', label: 'Perimeter FW', type: 'firewall', ip: '198.51.100.3', position: { x: 3.5, y: 0, z: 0.5 } },
-        { id: 'switch-1', label: 'Core Switch', type: 'server', ip: '10.0.0.1', position: { x: 0, y: 0, z: 3.5 } },
-        { id: 'web-01', label: 'Web Server', type: 'server', ip: '10.0.1.10', position: { x: -3.5, y: 0, z: 6.5 } },
-        { id: 'web-02', label: 'Web Server', type: 'server', ip: '10.0.1.11', position: { x: 3.5, y: 0, z: 6.5 } },
-        { id: 'app-01', label: 'App Server', type: 'server', ip: '10.0.2.20', position: { x: -2.5, y: 0, z: 8.2 } },
-        { id: 'app-02', label: 'App Server', type: 'server', ip: '10.0.2.21', position: { x: 2.5, y: 0, z: 8.2 } },
-        { id: 'db-01', label: 'DB Server', type: 'storage', ip: '10.0.3.30', position: { x: 0, y: 2.5, z: 10.2 } },
-        { id: 'storage-01', label: 'Storage SAN', type: 'storage', ip: '10.0.4.40', position: { x: 0, y: 4.5, z: 11.8 } },
-        { id: 'wap-01', label: 'WAP Floor 2', type: 'wap', ip: '10.0.5.50', position: { x: -5.5, y: 0, z: 5.5 } },
-        { id: 'host-01', label: 'Workstation', type: 'host', ip: '10.0.6.60', position: { x: -6.5, y: 0, z: 7.5 } },
-        { id: 'host-02', label: 'Workstation', type: 'host', ip: '10.0.6.61', position: { x: -6.5, y: 0, z: 9.5 } }
+        { id: 'router-1', label: 'Edge Router', type: 'router', ip: '198.51.100.1', data: ['internet-gateway'], position: { x: 0, y: 0, z: 0 } },
+        { id: 'fw-1', label: 'Perimeter FW', type: 'firewall', ip: '198.51.100.2', data: [], position: { x: 0, y: 0, z: 2 } },
+        { id: 'switch-1', label: 'Core Switch', type: 'switch', ip: '10.0.0.1', data: [], position: { x: 0, y: 0, z: 4 } },
+        { id: 'web-01', label: 'Web Server', type: 'server', ip: '10.0.1.10', data: ['public-website'], position: { x: -3, y: 0, z: 6 } },
+        { id: 'web-02', label: 'Web Server', type: 'server', ip: '10.0.1.11', data: ['public-website'], position: { x: 3, y: 0, z: 6 } },
+        { id: 'app-01', label: 'App Server', type: 'server', ip: '10.0.2.20', data: ['application-logic'], position: { x: -1.5, y: 0, z: 8 } },
+        { id: 'app-02', label: 'App Server', type: 'server', ip: '10.0.2.21', data: ['application-logic'], position: { x: 1.5, y: 0, z: 8 } },
+        { id: 'db-01', label: 'DB Server', type: 'storage', ip: '10.0.3.30', data: ['customers', 'orders'], position: { x: 0, y: 0, z: 10 } },
+        { id: 'storage-01', label: 'Storage SAN', type: 'storage', ip: '10.0.4.40', data: ['backups', 'archives'], position: { x: 0, y: 2, z: 8 } },
+        { id: 'wap-1', label: 'WAP-Floor2', type: 'wap', ip: '10.0.5.50', data: [], position: { x: -4, y: 0, z: 4 } },
+        { id: 'host-01', label: 'Workstation', type: 'host', ip: '10.0.6.60', data: [], position: { x: -5, y: 0, z: 6 } },
+        { id: 'host-02', label: 'Workstation', type: 'host', ip: '10.0.6.61', data: [], position: { x: -5, y: 0, z: 8 } }
     ],
     connections: [
         ['router-1', 'fw-1'],
-        ['router-1', 'fw-2'],
         ['fw-1', 'switch-1'],
-        ['fw-2', 'switch-1'],
         ['switch-1', 'web-01'],
         ['switch-1', 'web-02'],
         ['web-01', 'app-01'],
@@ -82,37 +80,49 @@ const NETWORK_DEFINITION = {
         ['app-01', 'db-01'],
         ['app-02', 'db-01'],
         ['db-01', 'storage-01'],
-        ['switch-1', 'wap-01'],
-        ['wap-01', 'host-01'],
-        ['wap-01', 'host-02']
+        ['switch-1', 'wap-1'],
+        ['wap-1', 'host-01'],
+        ['wap-1', 'host-02']
     ]
 };
 
 const TYPE_COLORS = {
-    router: 0x00d4ff,
-    firewall: 0xff5f7e,
-    server: 0x3dffb8,
-    storage: 0xb964ff,
-    wap: 0xffd447,
-    host: 0xff8e3c
+    router: 0x00ffff,
+    firewall: 0xff0040,
+    switch: 0x9d4edd,
+    server: 0x00ff88,
+    storage: 0x9d4edd,
+    wap: 0xffbe0b,
+    host: 0xa0a0b8
 };
 
 const NODE_GEOMETRIES = {
-    router: () => new THREE.BoxGeometry(1.6, 0.9, 1.6),
-    firewall: () => new THREE.CylinderGeometry(0.7, 0.7, 1.6, 6),
-    server: () => new THREE.CylinderGeometry(0.9, 0.9, 2.2, 16),
-    storage: () => new THREE.CylinderGeometry(1.2, 1.2, 0.6, 32),
-    wap: () => new THREE.OctahedronGeometry(0.85),
-    host: () => new THREE.BoxGeometry(1.1, 0.55, 1.3)
+    router: () => new THREE.BoxGeometry(1, 0.5, 1),
+    firewall: () => new THREE.BoxGeometry(0.8, 1.2, 0.3),
+    switch: () => new THREE.BoxGeometry(1.5, 0.3, 0.8),
+    server: () => new THREE.BoxGeometry(0.8, 1.5, 0.8),
+    storage: () => new THREE.CylinderGeometry(0.6, 0.6, 0.4, 16),
+    wap: () => new THREE.ConeGeometry(0.5, 1, 8),
+    host: () => new THREE.BoxGeometry(0.6, 0.8, 0.6)
 };
 
-const PACKET_SPEED = { min: 0.00045, max: 0.0012 };
+const PACKET_SPEED = { min: 0.003, max: 0.01 };
 const PACKET_COLORS = {
-    normal: 0x00b7ff,
-    attack: 0xff3b5f
+    normal: 0x00ffff,
+    alternate: 0x00ff88,
+    attack: 0xff0040
 };
 
-const RANDOM_ATTACKERS = ['203.0.113.45', '198.51.100.77', '192.0.2.123', '45.12.90.5'];
+const RANDOM_ATTACKERS = [
+    '203.0.113.45',
+    '198.51.100.77',
+    '192.0.2.123',
+    '203.0.113.88',
+    '198.51.100.99',
+    '192.0.2.200',
+    '203.0.113.101',
+    '198.51.100.42'
+];
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const formatNumber = value => Number(value || 0).toLocaleString('en-US');
@@ -151,12 +161,19 @@ const state = {
 function updateClock() {
     if (!dom.datetime) return;
     const now = new Date();
-    dom.datetime.textContent = now.toLocaleString(undefined, {
+    dom.datetime.textContent = now.toLocaleDateString('en-US', {
         weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit'
     });
+}
+
+function formatTime(date) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function drawTimeline() {
@@ -208,16 +225,45 @@ function buildDetail(label, value, extraClass = '') {
     row.className = extraClass || 'packet-detail';
 
     const lbl = document.createElement('span');
-    lbl.className = 'packet-label';
+    lbl.className = extraClass === 'node-detail' ? 'node-label' : 'packet-label';
     lbl.textContent = label;
 
     const val = document.createElement('span');
-    val.className = 'packet-value';
+    val.className = extraClass === 'node-detail' ? 'node-value' : 'packet-value';
     val.textContent = value;
 
     row.appendChild(lbl);
     row.appendChild(val);
     return row;
+}
+
+function normalizeAlert(alert) {
+    const attackType = (alert.attack_types || alert.attacks || [alert.attack || alert.type || 'Threat'])[0] || 'Threat';
+    const timestamp = alert.timestamp ? new Date(alert.timestamp * 1000) : new Date();
+    const sourceIP = alert.source_ip || alert.sourceIP || 'Unknown';
+    const targetId = alert.target_node || alert.targetId || alert.target_id || alert.dest_ip || 'unknown';
+    const targetNode = state.nodes.get(targetId);
+    const targetLabel = targetNode?.label || alert.dest_ip || targetId || 'Unknown';
+    const rawConfidence = alert.confidence ?? 0.8;
+    const confidence = Number(rawConfidence) > 1 ? Math.round(Number(rawConfidence)) : Math.round(Number(rawConfidence) * 100);
+    const action = alert.mitigation?.action || alert.action || 'Flagged';
+    const flags = alert.flags?.join(', ') || alert.packet_flags || '[ ]';
+    const payloadSnippet = alert.payload_snippet || alert.payload || '';
+    const targetData = targetNode?.data?.join(', ') || (alert.targeted_data || []).join(', ');
+    return {
+        attackType,
+        timestamp,
+        sourceIP,
+        targetId,
+        targetLabel,
+        targetData,
+        confidence,
+        action,
+        flags,
+        payloadSnippet,
+        cve: alert.cve,
+        description: alert.description
+    };
 }
 
 function renderAlerts() {
@@ -235,7 +281,8 @@ function renderAlerts() {
 
     if (dom.alertCount) dom.alertCount.textContent = state.alerts.length.toString();
 
-    state.alerts.slice(0, 15).forEach(alert => {
+    state.alerts.slice(0, 10).forEach(alert => {
+        const view = normalizeAlert(alert);
         const item = document.createElement('div');
         item.className = 'alert-item';
         if (state.selectedAlert?.id === alert.id) {
@@ -246,32 +293,26 @@ function renderAlerts() {
         header.className = 'alert-header';
         const type = document.createElement('span');
         type.className = 'alert-type';
-        type.textContent = alert.attack_types?.[0] || alert.attack || 'Threat';
+        type.textContent = view.attackType;
         const time = document.createElement('span');
         time.className = 'alert-time';
-        time.textContent = new Date(alert.timestamp * 1000).toLocaleTimeString();
+        time.textContent = formatTime(view.timestamp);
         header.appendChild(type);
         header.appendChild(time);
 
         const details = document.createElement('div');
         details.className = 'alert-details';
-        const source = document.createElement('span');
-        source.className = 'alert-source';
-        source.textContent = alert.source_ip || 'Unknown';
-        details.appendChild(source);
-        const route = document.createElement('span');
-        route.textContent = ` -> ${alert.dest_ip || alert.target_node || 'Unknown'}`;
-        details.appendChild(route);
-
-        const meta = document.createElement('div');
-        meta.className = 'alert-details';
-        meta.textContent = alert.description || 'Suspicious behavior detected';
+        details.innerHTML = `
+            <div>Source: <span class="alert-source">${view.sourceIP}</span></div>
+            <div>Target: ${view.targetLabel}</div>
+            <div>Confidence: ${view.confidence}% | Action: ${view.action}</div>
+        `;
 
         item.appendChild(header);
         item.appendChild(details);
-        item.appendChild(meta);
         item.addEventListener('click', () => {
-            selectAlert(alert, { openModal: true, highlightScene: true });
+            const shouldOpenModal = view.confidence >= 90;
+            selectAlert(alert, { openModal: shouldOpenModal, highlightScene: true });
         });
         dom.alertsContainer.appendChild(item);
     });
@@ -290,23 +331,30 @@ function updateInspector(alert) {
         return;
     }
 
-    dom.inspectorStatus.textContent = `Inspecting ${alert.attack_types?.[0] || 'Alert'}`;
+    const view = normalizeAlert(alert);
+    const targetNode = state.nodes.get(view.targetId);
+    const targetIp = targetNode?.ip || alert.dest_ip || 'Unknown';
+
+    dom.inspectorStatus.textContent = `Inspecting ${view.attackType} attack`;
     const fields = [
-        ['Source', alert.source_ip || 'Unknown'],
-        ['Destination', alert.dest_ip || alert.target_node || 'Unknown'],
-        ['Attack', (alert.attack_types || alert.attacks || []).join(', ') || 'Unknown'],
-        ['Flags', alert.flags?.join(', ') || alert.packet_flags || '[ ]'],
-        ['Confidence', toPercent(alert.confidence ?? 0.8)],
-        ['Action', alert.mitigation?.action || alert.action || 'Flagged']
+        ['Source IP', view.sourceIP],
+        ['Target IP', targetIp],
+        ['Attack Type', view.attackType],
+        ['Flags', view.flags],
+        ['Confidence', `${view.confidence}%`],
+        ['Action', view.action]
     ];
+    if (view.cve) {
+        fields.push(['CVE', view.cve]);
+    }
     fields.forEach(([label, value]) => {
         dom.inspectorContent.appendChild(buildDetail(label, value));
     });
 
-    if (alert.payload_snippet || alert.payload) {
+    if (view.payloadSnippet) {
         const payload = document.createElement('div');
         payload.className = 'packet-payload';
-        payload.textContent = alert.payload_snippet || alert.payload;
+        payload.textContent = view.payloadSnippet;
         dom.inspectorContent.appendChild(payload);
     }
 }
@@ -323,14 +371,29 @@ function updateNodeInspector(node) {
     }
 
     const rows = [
-        ['Node', node.label],
+        ['Name', node.label],
         ['Type', node.type.toUpperCase()],
-        ['IP', node.ip],
-        ['Status', node.status || 'Online'],
+        ['IP Address', node.ip],
         ['Data', node.data?.join(', ') || 'None'],
+        ['Status', node.status || 'Online'],
         ['Last Seen', node.lastSeen || new Date().toLocaleTimeString()]
     ];
     rows.forEach(([label, value]) => dom.nodeDetails.appendChild(buildDetail(label, value, 'node-detail')));
+
+    const actions = document.createElement('div');
+    actions.className = 'node-actions';
+    actions.style.marginTop = '10px';
+    [
+        { label: 'Isolate', className: 'modal-btn', handler: () => console.log('[Action] Isolate', node.id) },
+        { label: 'Block Traffic', className: 'modal-btn block', handler: () => console.log('[Action] Block', node.ip) }
+    ].forEach(action => {
+        const btn = document.createElement('button');
+        btn.className = action.className;
+        btn.textContent = action.label;
+        btn.addEventListener('click', action.handler);
+        actions.appendChild(btn);
+    });
+    dom.nodeDetails.appendChild(actions);
 }
 
 function populateModal(alert) {
@@ -338,86 +401,68 @@ function populateModal(alert) {
     dom.modalBody.innerHTML = '';
     if (!alert) return;
 
-    const sections = [
-        {
-            title: 'Attack Summary',
-            data: [
-                ['Attack Type', (alert.attack_types || alert.attacks || ['Unknown']).join(', ')],
-                ['Source IP', alert.source_ip || 'Unknown'],
-                ['Target Asset', alert.target_node || alert.dest_ip || 'Unknown'],
-                ['Targeted Data', (alert.targeted_data || []).join(', ') || 'None'],
-                ['Confidence', toPercent(alert.confidence ?? 0.8)],
-                ['Action Taken', alert.mitigation?.action || 'Flagged']
-            ]
-        },
-        {
-            title: 'Packet Snapshot',
-            data: [
-                ['Flags', alert.flags?.join(', ') || alert.packet_flags || '[ ]'],
-                ['Payload', alert.payload_snippet || alert.payload || 'Not captured']
-            ]
-        }
-    ];
+    const view = normalizeAlert(alert);
+    const targetNode = state.nodes.get(view.targetId);
+    const targetIp = targetNode?.ip || alert.dest_ip || 'Unknown';
 
-    if (alert.cve || alert.description) {
-        sections.splice(1, 0, {
-            title: 'Vulnerability Intel',
-            data: [
-                ['CVE', alert.cve || 'N/A'],
-                ['Description', alert.description || 'Not provided']
-            ]
-        });
-    }
-
-    sections.forEach(section => {
-        const block = document.createElement('div');
-        block.className = 'modal-section';
-
-        const title = document.createElement('div');
-        title.className = 'modal-section-title';
-        title.textContent = section.title;
-        block.appendChild(title);
-
-        section.data.forEach(([label, value]) => {
-            const detail = document.createElement('div');
-            detail.className = 'modal-detail';
-
-            const lbl = document.createElement('span');
-            lbl.className = 'modal-label';
-            lbl.textContent = label;
-
-            const val = document.createElement('span');
-            val.className = 'modal-value';
-            val.textContent = value;
-
-            detail.appendChild(lbl);
-            detail.appendChild(val);
-            block.appendChild(detail);
-        });
-
-        dom.modalBody.appendChild(block);
-    });
-
-    const actions = document.createElement('div');
-    actions.className = 'modal-actions';
-
-    [
-        { label: 'Block Source', className: 'modal-btn block', handler: () => console.log('[Action] Block', alert.source_ip) },
-        { label: 'Isolate Target', className: 'modal-btn', handler: () => console.log('[Action] Isolate', alert.target_node || alert.dest_ip) },
-        { label: 'Watch Asset', className: 'modal-btn', handler: () => console.log('[Action] Watchlist', alert.target_node || alert.dest_ip) },
-        { label: 'Mark False Positive', className: 'modal-btn', handler: () => console.log('[Action] False positive', alert.id) }
-    ].forEach(action => {
-        const btn = document.createElement('button');
-        btn.className = action.className;
-        btn.textContent = action.label;
-        btn.addEventListener('click', () => {
-            action.handler();
-            closeModal();
-        });
-        actions.appendChild(btn);
-    });
-
-    dom.modalBody.appendChild(actions);
+    dom.modalBody.innerHTML = `
+        <div class="modal-section">
+            <div class="modal-detail">
+                <span class="modal-label">Attack Type:</span>
+                <span class="modal-value highlight">${view.attackType}</span>
+            </div>
+            <div class="modal-detail">
+                <span class="modal-label">Source IP:</span>
+                <span class="modal-value highlight">${view.sourceIP}</span>
+            </div>
+            <div class="modal-detail">
+                <span class="modal-label">Target Asset:</span>
+                <span class="modal-value">${view.targetLabel} (${targetIp})</span>
+            </div>
+            <div class="modal-detail">
+                <span class="modal-label">Targeted Data:</span>
+                <span class="modal-value">${view.targetData || 'None'}</span>
+            </div>
+            <div class="modal-detail">
+                <span class="modal-label">Confidence:</span>
+                <span class="modal-value">${view.confidence}%</span>
+            </div>
+            <div class="modal-detail">
+                <span class="modal-label">Action Taken:</span>
+                <span class="modal-value ${view.action === 'Blocked' || view.action === 'block' ? 'highlight' : ''}">${view.action}</span>
+            </div>
+        </div>
+        ${view.cve ? `
+        <div class="modal-section">
+            <div class="modal-section-title">VULNERABILITY DETAILS</div>
+            <div class="modal-detail">
+                <span class="modal-label">CVE ID:</span>
+                <span class="modal-value cve">${view.cve}</span>
+            </div>
+            <div class="modal-detail">
+                <span class="modal-label">Description:</span>
+                <span class="modal-value">${view.description || 'Not provided'}</span>
+            </div>
+        </div>
+        ` : ''}
+        <div class="modal-section">
+            <div class="modal-section-title">PACKET ANALYSIS</div>
+            <div class="modal-detail">
+                <span class="modal-label">Flags:</span>
+                <span class="modal-value">${view.flags}</span>
+            </div>
+            <div class="modal-detail">
+                <span class="modal-label">Payload Snippet:</span>
+            </div>
+            <div class="packet-payload">${view.payloadSnippet || 'Not captured'}</div>
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn block">Block Source IP</button>
+            <button class="modal-btn block">Isolate Target</button>
+            <button class="modal-btn">Add to Watchlist</button>
+            <button class="modal-btn">False Positive</button>
+        </div>
+    `;
 }
 
 function openModal(alert) {
@@ -439,8 +484,11 @@ function selectAlert(alert, options = {}) {
     state.selectedAlert = alert;
     updateInspector(alert);
     renderAlerts();
-    if (options.highlightScene && alert?.target_node) {
-        highlightNode(alert.target_node);
+    if (options.highlightScene) {
+        const view = normalizeAlert(alert);
+        if (view.targetId) {
+            highlightNode(view.targetId);
+        }
     }
     if (options.openModal) {
         openModal(alert);
@@ -464,7 +512,7 @@ function highlightNode(nodeId) {
 
 function addAlert(alert) {
     state.alerts.unshift(alert);
-    if (state.alerts.length > 30) {
+    if (state.alerts.length > 10) {
         state.alerts.pop();
     }
     renderAlerts();
@@ -602,7 +650,8 @@ function buildScene() {
     const height = dom.networkViewport.clientHeight || 600;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x02060f);
+    scene.background = new THREE.Color(0x0a0a12);
+    scene.fog = new THREE.Fog(0x0a0a12, 10, 50);
 
     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
     camera.position.set(0, 10, 15);
@@ -639,7 +688,6 @@ function buildScene() {
     state.packetsGroup = packetsGroup;
     state.cameraTarget.set(0, 1.5, 4);
     state.cameraSpherical.setFromVector3(camera.position.clone().sub(state.cameraTarget));
-    renderer.domElement.style.cursor = 'grab';
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
@@ -681,20 +729,23 @@ function populateScene() {
         state.nodes.set(node.id, {
             ...node,
             status: 'Online',
-            data: node.type === 'server' ? ['public-service'] : node.type === 'storage' ? ['backups'] : [],
+            data: Array.isArray(node.data) ? node.data : [],
             lastSeen: new Date().toLocaleTimeString()
         });
 
         const geometryFactory = NODE_GEOMETRIES[node.type] || NODE_GEOMETRIES.router;
         const geometry = geometryFactory();
-        const material = new THREE.MeshStandardMaterial({
-            color: TYPE_COLORS[node.type] || 0x00ffff,
-            emissive: TYPE_COLORS[node.type] || 0x00ffff,
-            emissiveIntensity: 0.25
+        const color = TYPE_COLORS[node.type] || 0x00ffff;
+        const material = new THREE.MeshPhongMaterial({
+            color,
+            emissive: color,
+            emissiveIntensity: 0.2,
+            transparent: true,
+            opacity: 0.8
         });
         const mesh = new THREE.Mesh(geometry, material);
         const baseHeight = node.position?.y || 0;
-        const lift = 0.6;
+        const lift = 0;
         const finalHeight = baseHeight + lift;
         mesh.position.set(node.position.x, finalHeight, node.position.z);
         mesh.userData = { id: node.id, baseY: finalHeight };
@@ -705,15 +756,16 @@ function populateScene() {
         const ctx = labelCanvas.getContext('2d');
         labelCanvas.width = 256;
         labelCanvas.height = 64;
-        ctx.fillStyle = 'rgba(3, 8, 18, 0.6)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
         ctx.fillRect(0, 0, 256, 64);
-        ctx.font = '20px "Roboto Mono"';
-        ctx.fillStyle = '#00f5ff';
-        ctx.fillText(node.label, 16, 36);
+        ctx.font = '20px Orbitron';
+        ctx.fillStyle = '#00ffff';
+        ctx.textAlign = 'center';
+        ctx.fillText(node.label, 128, 36);
         const texture = new THREE.CanvasTexture(labelCanvas);
         const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
         const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set(3, 1, 1);
+        sprite.scale.set(2, 0.5, 1);
         sprite.position.set(node.position.x, baseHeight + lift + 1.5, node.position.z);
         state.scene.add(sprite);
     });
@@ -725,8 +777,8 @@ function populateScene() {
 
         const sourceBase = sourceNode.position?.y || 0;
         const targetBase = targetNode.position?.y || 0;
-        const sourceLift = 0.6;
-        const targetLift = 0.6;
+        const sourceLift = 0.1;
+        const targetLift = 0.1;
         const start = new THREE.Vector3(
             sourceNode.position.x,
             sourceBase + sourceLift,
@@ -739,7 +791,7 @@ function populateScene() {
         );
         const points = [start, end];
         const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const material = new THREE.LineBasicMaterial({ color: 0x00a8ff, transparent: true, opacity: 0.35 });
+        const material = new THREE.LineBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.5 });
         const line = new THREE.Line(geometry, material);
         state.linesGroup.add(line);
 
@@ -760,13 +812,16 @@ function seedPacketTrails() {
     for (let i = 0; i < totalPackets; i += 1) {
         const connection = randomItem(state.connections);
         if (!connection) break;
-        const geometry = new THREE.SphereGeometry(0.15, 12, 12);
-        const isAttackPacket = Math.random() < 0.25;
-        const packetColor = isAttackPacket ? PACKET_COLORS.attack : PACKET_COLORS.normal;
+        const size = 0.1 + Math.random() * 0.1;
+        const geometry = new THREE.SphereGeometry(size, 8, 8);
+        const isAttackPacket = Math.random() < 0.3;
+        const packetColor = isAttackPacket
+            ? PACKET_COLORS.attack
+            : (Math.random() > 0.5 ? PACKET_COLORS.normal : PACKET_COLORS.alternate);
         const material = new THREE.MeshBasicMaterial({
             color: packetColor,
             transparent: true,
-            opacity: 0.9
+            opacity: 0.8
         });
         const mesh = new THREE.Mesh(geometry, material);
         state.packetsGroup.add(mesh);
@@ -920,9 +975,12 @@ async function triggerSimulation(attackType) {
 }
 
 function wireControls() {
+    const pauseIcon = '\u23F8';
+    const playIcon = '\u25B6';
+
     uiControls.pause?.addEventListener('click', () => {
         state.paused = !state.paused;
-        uiControls.pause.classList.toggle('is-active', state.paused);
+        uiControls.pause.innerHTML = `<span class="icon">${state.paused ? playIcon : pauseIcon}</span>`;
     });
 
     uiControls.step?.addEventListener('click', () => {
@@ -937,8 +995,16 @@ function wireControls() {
         if (state.packetsGroup) {
             state.packetsGroup.visible = !willHide;
         }
-        uiControls.togglePackets.classList.toggle('is-active', willHide);
+        uiControls.togglePackets.style.opacity = willHide ? '0.5' : '1';
     });
+
+    if (dom.speedSlider) {
+        state.speedMultiplier = parseFloat(dom.speedSlider.value) || 1;
+        dom.speedSlider.addEventListener('input', event => {
+            const value = parseFloat(event.target.value);
+            state.speedMultiplier = Number.isFinite(value) ? value : 1;
+        });
+    }
 
     uiControls.closeNode?.addEventListener('click', () => clearNodeSelection());
     uiControls.closeModal?.addEventListener('click', () => closeModal());

@@ -1,0 +1,59 @@
+{
+  "report": {
+    "0": {
+      "precision": 0.9780492649980135,
+      "recall": 0.9847,
+      "f1-score": 0.9813633645604943,
+      "support": 20000.0
+    },
+    "1": {
+      "precision": 0.9968891057704038,
+      "recall": 0.99551269035533,
+      "f1-score": 0.996200422626788,
+      "support": 98500.0
+    },
+    "accuracy": 0.9936877637130802,
+    "macro avg": {
+      "precision": 0.9874691853842086,
+      "recall": 0.990106345177665,
+      "f1-score": 0.9887818935936412,
+      "support": 118500.0
+    },
+    "weighted avg": {
+      "precision": 0.993709385808819,
+      "recall": 0.9936877637130802,
+      "f1-score": 0.9936962778054726,
+      "support": 118500.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      19694,
+      306
+    ],
+    [
+      442,
+      98058
+    ]
+  ],
+  "target_type": "binary",
+  "feature_columns": [
+    "Dst Port",
+    "Protocol",
+    "TotLen Fwd Pkts",
+    "Fwd Pkt Len Max",
+    "Fwd Pkt Len Mean",
+    "Flow Byts/s",
+    "PSH Flag Cnt",
+    "URG Flag Cnt",
+    "FIN Flag Cnt",
+    "SYN Flag Cnt",
+    "RST Flag Cnt",
+    "ACK Flag Cnt",
+    "Fwd Header Len",
+    "Fwd Pkt Len Min",
+    "Fwd Pkt Len Std",
+    "Down/Up Ratio",
+    "Fwd Pkts/s"
+  ]
+}

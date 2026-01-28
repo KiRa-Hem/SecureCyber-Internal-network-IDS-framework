@@ -21,6 +21,16 @@ services:
       - ENABLE_PACKET_CAPTURE=true
       - MODEL_PATH=/models
       - API_TOKEN=CHANGE_ME
+      - ADMIN_TOKEN=CHANGE_ME_ADMIN
+      - JWT_SECRET=CHANGE_ME_JWT
+      - JWT_ISSUER=securecyber-ids
+      - JWT_AUDIENCE=securecyber-ui
+      - JWT_EXP_SECONDS=3600
+      - AUDIT_LOG_ENABLED=true
+      - AUDIT_LOG_TO_DB=true
+      - ALERT_FUSION_ENABLED=true
+      - ALERT_DEDUP_WINDOW_SECONDS=30
+      - DRIFT_ENABLED=true
       - CORS_ORIGINS=["http://localhost","http://127.0.0.1","http://localhost:80","http://127.0.0.1:80","http://localhost:5173","http://127.0.0.1:5173"]
       - CORS_ALLOW_CREDENTIALS=false
       - SECRET_KEY=your-secret-key-change-in-production
@@ -55,6 +65,7 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/ids_bearer_token:/etc/prometheus/ids_bearer_token:ro
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
     restart: unless-stopped

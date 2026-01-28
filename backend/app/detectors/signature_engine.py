@@ -163,12 +163,15 @@ class SignatureEngine:
         packet: Dict[str, Any],
     ) -> List[str]:
         protocol = (
-            packet.get("protocol")
-            or packet.get("protocol_name")
+            packet.get("protocol_name")
             or packet.get("protocol_type")
+            or packet.get("protocol")
         )
-        if signature.protocol and protocol:
-            if protocol.lower() != signature.protocol.lower():
+        if signature.protocol and protocol is not None:
+            proto_value = protocol
+            if isinstance(protocol, (int, float)):
+                proto_value = {6: "tcp", 17: "udp", 1: "icmp"}.get(int(protocol), str(protocol))
+            if str(proto_value).lower() != signature.protocol.lower():
                 return []
 
         if signature.src_ports:
