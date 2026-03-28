@@ -206,7 +206,7 @@ def main():
     """Main function to run the migration."""
     # Get configuration
     sqlite_path = os.path.join(os.path.dirname(__file__), '..', 'backend', 'data', 'ids.db')
-    mongo_uri = settings.MONGO_URI
+    mongo_uri = settings.MONGO_URI_COMPUTED
     db_name = settings.MONGO_DB
     
     # Check if SQLite database exists

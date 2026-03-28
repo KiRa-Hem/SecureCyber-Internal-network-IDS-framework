@@ -61,6 +61,12 @@ def parse_args() -> argparse.Namespace:
         help="Stop after processing this many total rows (0 = no limit).",
     )
     parser.add_argument(
+        "--max-missing-ratio",
+        type=float,
+        default=0.2,
+        help="Fail if missing feature ratio exceeds this threshold (default: 0.2).",
+    )
+    parser.add_argument(
         "--days",
         nargs="*",
         default=None,
@@ -82,15 +88,18 @@ def load_metadata(model_dir: Path) -> Dict[str, object]:
     raise FileNotFoundError(f"Model metadata not found in {model_dir}")
 
 
-def coerce_features(df: pd.DataFrame, feature_columns: List[str]) -> pd.DataFrame:
+def coerce_features(df: pd.DataFrame, feature_columns: List[str]):
     working = df.copy()
+    missing = []
     for col in feature_columns:
         if col not in working.columns:
             working[col] = 0
+            missing.append(col)
     working = working[feature_columns]
     working = working.apply(pd.to_numeric, errors="coerce")
     working.replace([np.inf, -np.inf], np.nan, inplace=True)
-    return working
+    missing_ratio = len(missing) / max(len(feature_columns), 1)
+    return working, missing_ratio, missing
 
 
 def compute_counts(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, int]:
@@ -162,6 +171,7 @@ def main() -> None:
         file_counts = {"tp": 0, "tn": 0, "fp": 0, "fn": 0}
         file_rows = 0
         file_dropped = 0
+        checked_missing = False
 
         for chunk in pd.read_csv(csv_path, chunksize=args.chunksize, low_memory=False):
             chunk.columns = [normalize_column_name(col) for col in chunk.columns]
@@ -171,7 +181,18 @@ def main() -> None:
             labels = chunk["label"].astype(str).str.strip().str.lower()
             y_true = (labels != "benign").astype(int).to_numpy()
 
-            features = coerce_features(chunk, feature_columns)
+            features, missing_ratio, missing_cols = coerce_features(chunk, feature_columns)
+            if not checked_missing:
+                print(
+                    f"Feature missing ratio for {csv_path.name}: "
+                    f"{missing_ratio:.2%} ({len(missing_cols)}/{len(feature_columns)})"
+                )
+                if missing_ratio > args.max_missing_ratio:
+                    raise SystemExit(
+                        f"ERROR: Missing feature ratio {missing_ratio:.2%} exceeds "
+                        f"threshold {args.max_missing_ratio:.2%} for {csv_path.name}"
+                    )
+                checked_missing = True
             valid_mask = features.notna().all(axis=1)
             if not valid_mask.all():
                 drop_count = int((~valid_mask).sum())

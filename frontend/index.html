@@ -1,16 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SecureCyber IDS Dashboard</title>
+    <meta name="description"
+        content="AI-Driven Intrusion Detection System with real-time network monitoring, MITRE ATT&CK mapping, and autonomous threat response.">
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Roboto+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Roboto+Mono:wght@300;400&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script>
+        // Auto-configure API token for dashboard authentication.
+        // In production, this should be served dynamically by the backend.
+        window.__IDS_CONFIG__ = {
+            apiToken: 'e666e72ad209739a71f87a71522a5c13036e86bd60bec7121bd15163ef93f8a2'
+        };
+    </script>
 </head>
+
 <body>
     <div class="scanlines"></div>
     <div class="grain"></div>
-    
+
     <div class="dashboard-container">
         <!-- Header -->
         <header class="dashboard-header">
@@ -19,141 +33,455 @@
                 <div class="status-indicator online"></div>
                 <span class="status-text">SYSTEMS ONLINE</span>
             </div>
-            <div class="datetime" id="datetime"></div>
-        </header>
-        
-        <!-- Main Content -->
-        <div class="dashboard-content">
-            <!-- Left Panel -->
-            <div class="left-panel">
-                <!-- Network Status Panel -->
-                <div class="panel status-panel">
-                    <div class="panel-header">
-                        <h2>NETWORK STATUS</h2>
-                        <div class="panel-controls">
-                            <button class="control-btn" id="pause-btn" title="Pause/Resume">
-                                <span class="icon">⏸</span>
-                            </button>
-                            <button class="control-btn" id="step-btn" title="Step Event">
-                                <span class="icon">⏭</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="status-grid">
-                        <div class="status-item">
-                            <div class="status-label">Total Packets</div>
-                            <div class="status-value" id="total-packets">0</div>
-                        </div>
-                        <div class="status-item">
-                            <div class="status-label">Threats Blocked</div>
-                            <div class="status-value" id="threats-blocked">0</div>
-                        </div>
-                        <div class="status-item">
-                            <div class="status-label">Active Hosts</div>
-                            <div class="status-value" id="active-hosts">0</div>
-                        </div>
-                        <div class="status-item">
-                            <div class="status-label">Attack Rate</div>
-                            <div class="status-value" id="attack-rate">0/min</div>
-                        </div>
-                    </div>
-                    <div class="threat-timeline">
-                        <canvas id="threat-timeline" width="300" height="60"></canvas>
-                    </div>
+            <div class="header-indicators">
+                <div class="indicator-item" id="model-health-indicator" title="ML Model Health">
+                    <span class="indicator-label">MODEL</span>
+                    <span class="indicator-dot green" id="model-health-dot"></span>
+                    <span class="indicator-value" id="model-health-text">v1.0.0</span>
                 </div>
-                
-                <!-- Alerts Panel -->
-                <div class="panel alerts-panel">
-                    <div class="panel-header">
-                        <h2>LIVE ALERTS</h2>
-                        <div class="alert-count" id="alert-count">0</div>
-                    </div>
-                    <div class="alerts-container" id="alerts-container">
-                        <!-- Alerts will be dynamically added here -->
-                    </div>
+                <div class="indicator-item" id="rl-status-indicator" title="RL Optimizer Status">
+                    <span class="indicator-label">RL</span>
+                    <span class="indicator-dot green" id="rl-status-dot"></span>
+                    <span class="indicator-value" id="rl-status-text">Active</span>
                 </div>
-                
-                <!-- Packet Inspector Panel -->
-                <div class="panel inspector-panel">
-                    <div class="panel-header">
-                        <h2>PACKET INSPECTOR</h2>
-                        <div class="inspector-status" id="inspector-status">No packet selected</div>
-                    </div>
-                    <div class="inspector-content" id="inspector-content">
-                        <div class="empty-state">Select an alert to inspect packet details</div>
-                    </div>
+                <div class="indicator-item" id="llm-status-indicator" title="LLM Analyzer Status">
+                    <span class="indicator-label">LLM</span>
+                    <span class="indicator-dot yellow" id="llm-status-dot"></span>
+                    <span class="indicator-value" id="llm-status-text">Offline</span>
                 </div>
-                
-                <!-- Node Details Panel -->
-                <div class="panel node-details-panel">
-                    <div class="panel-header">
-                        <h2>NODE INSPECTOR</h2>
-                        <button class="close-btn" id="close-node-details">×</button>
-                    </div>
-                    <div class="node-details-content" id="node-details-content">
-                        <div class="empty-state">Click a node to view details</div>
-                    </div>
+                <div class="indicator-item" id="incident-count-indicator" title="Active Incidents">
+                    <span class="indicator-label">INCIDENTS</span>
+                    <span class="indicator-value neon-text" id="incident-count-header">0</span>
+                </div>
+                <div class="indicator-item" id="sig-count-indicator" title="Loaded Signatures">
+                    <span class="indicator-label">SIGS</span>
+                    <span class="indicator-value" id="sig-count-text">0</span>
                 </div>
             </div>
-            
-            <!-- Right Panel - 3D Network Visualization -->
-            <div class="right-panel">
-                <div class="panel network-panel">
-                    <div class="panel-header">
-                        <h2>NETWORK TOPOLOGY</h2>
-                        <div class="network-controls">
-                            <button class="control-btn" id="toggle-packets" title="Toggle Packet Trails">
-                                <span class="icon">✦</span>
-                            </button>
-                            <div class="speed-control">
-                                <label for="speed-slider">Speed:</label>
-                                <input type="range" id="speed-slider" min="0.5" max="3" step="0.5" value="1">
+            <div class="datetime" id="datetime"></div>
+        </header>
+
+        <!-- Critical Alerts Banner -->
+        <div class="critical-banner" id="critical-banner" style="display:none;">
+            <span class="critical-banner-icon">🔴</span>
+            <span class="critical-banner-text" id="critical-banner-text">0 CRITICAL ALERTS ACTIVE</span>
+            <button class="critical-banner-dismiss" id="critical-banner-dismiss" title="Dismiss">×</button>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="page-nav" id="page-nav">
+            <button class="nav-btn active" data-page="dashboard" id="nav-dashboard">
+                <span class="nav-icon">◉</span> Dashboard
+            </button>
+            <button class="nav-btn" data-page="analytics" id="nav-analytics">
+                <span class="nav-icon">📊</span> Analytics
+            </button>
+            <button class="nav-btn" data-page="incidents" id="nav-incidents">
+                <span class="nav-icon">🛡️</span> Incidents
+            </button>
+            <button class="nav-btn" data-page="models" id="nav-models">
+                <span class="nav-icon">🧠</span> Models
+            </button>
+            <button class="nav-btn" data-page="settings" id="nav-settings">
+                <span class="nav-icon">⚙️</span> Settings
+            </button>
+        </nav>
+
+        <!-- ===================== PAGE: DASHBOARD ===================== -->
+        <div class="page-content active" id="page-dashboard">
+            <div class="dashboard-content">
+                <div class="left-panel">
+                    <!-- Network Status -->
+                    <div class="panel status-panel">
+                        <div class="panel-header">
+                            <h2>NETWORK STATUS</h2>
+                            <div class="panel-controls">
+                                <button class="control-btn" id="pause-btn" title="Pause/Resume"><span
+                                        class="icon">⏸</span></button>
+                                <button class="control-btn" id="step-btn" title="Step Event"><span
+                                        class="icon">⏭</span></button>
+                            </div>
+                        </div>
+                        <div class="status-grid">
+                            <div class="status-item">
+                                <div class="status-label">Total Packets</div>
+                                <div class="status-value" id="total-packets">0</div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-label">Threats Blocked</div>
+                                <div class="status-value" id="threats-blocked">0</div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-label">Active Hosts</div>
+                                <div class="status-value" id="active-hosts">0</div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-label">Attack Rate</div>
+                                <div class="status-value" id="attack-rate">0/min</div>
+                            </div>
+                        </div>
+                        <div class="threat-timeline"><canvas id="threat-timeline" width="300" height="60"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Alerts Panel with Severity Filter -->
+                    <div class="panel alerts-panel">
+                        <div class="panel-header">
+                            <h2>LIVE ALERTS</h2>
+                            <div class="alert-controls">
+                                <select class="severity-filter" id="severity-filter" title="Filter by severity">
+                                    <option value="all">ALL</option>
+                                    <option value="critical">🔴 CRITICAL</option>
+                                    <option value="high">🟠 HIGH</option>
+                                    <option value="medium">🟡 MEDIUM</option>
+                                    <option value="low">🟢 LOW</option>
+                                </select>
+                                <div class="alert-count" id="alert-count">0</div>
+                            </div>
+                        </div>
+                        <div class="alerts-container" id="alerts-container"></div>
+                    </div>
+
+                    <!-- Incident Response -->
+                    <div class="panel incident-panel">
+                        <div class="panel-header">
+                            <h2>INCIDENT RESPONSE</h2>
+                            <div class="incident-badge" id="incident-badge">0</div>
+                        </div>
+                        <div class="incident-list" id="incident-list">
+                            <div class="empty-state">No active incidents</div>
+                        </div>
+                    </div>
+
+                    <!-- Packet Inspector -->
+                    <div class="panel inspector-panel">
+                        <div class="panel-header">
+                            <h2>PACKET INSPECTOR</h2>
+                            <div class="inspector-status" id="inspector-status">No packet selected</div>
+                        </div>
+                        <div class="inspector-content" id="inspector-content">
+                            <div class="empty-state">Select an alert to inspect packet details</div>
+                        </div>
+                    </div>
+
+                    <!-- Node Details -->
+                    <div class="panel node-details-panel">
+                        <div class="panel-header">
+                            <h2>NODE INSPECTOR</h2><button class="close-btn" id="close-node-details">×</button>
+                        </div>
+                        <div class="node-details-content" id="node-details-content">
+                            <div class="empty-state">Click a node to view details</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="right-panel">
+                    <!-- 3D Network Topology -->
+                    <div class="panel network-panel">
+                        <div class="panel-header">
+                            <h2>NETWORK TOPOLOGY</h2>
+                            <div class="network-controls">
+                                <button class="control-btn" id="toggle-packets" title="Toggle Packet Trails"><span
+                                        class="icon">✦</span></button>
+                                <div class="speed-control"><label for="speed-slider">Speed:</label><input type="range"
+                                        id="speed-slider" min="0.5" max="3" step="0.5" value="1"></div>
+                            </div>
+                        </div>
+                        <div class="network-viewport" id="network-viewport"></div>
+                        <div class="network-legend">
+                            <div class="legend-item">
+                                <div class="legend-icon router"></div><span>Router</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-icon firewall"></div><span>Firewall</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-icon server"></div><span>Server</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-icon storage"></div><span>Storage</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-icon wap"></div><span>WAP</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-icon host"></div><span>Host</span>
                             </div>
                         </div>
                     </div>
-                    <div class="network-viewport" id="network-viewport">
-                        <!-- Three.js canvas will be inserted here -->
-                    </div>
-                    <div class="network-legend">
-                        <div class="legend-item">
-                            <div class="legend-icon router"></div>
-                            <span>Router</span>
+
+                    <!-- Quick Analytics Row -->
+                    <div class="analytics-row">
+                        <div class="panel analytics-panel analytics-half">
+                            <div class="panel-header">
+                                <h2>ATTACK DISTRIBUTION</h2>
+                            </div>
+                            <div class="chart-container"><canvas id="attack-distribution-chart"></canvas></div>
                         </div>
-                        <div class="legend-item">
-                            <div class="legend-icon firewall"></div>
-                            <span>Firewall</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-icon server"></div>
-                            <span>Server</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-icon storage"></div>
-                            <span>Storage</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-icon wap"></div>
-                            <span>WAP</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-icon host"></div>
-                            <span>Host</span>
+                        <div class="panel analytics-panel analytics-half">
+                            <div class="panel-header">
+                                <h2>ATTACK TIMELINE</h2>
+                            </div>
+                            <div class="chart-container"><canvas id="attack-timeline-chart"></canvas></div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        
+
+        <!-- ===================== PAGE: ANALYTICS ===================== -->
+        <div class="page-content" id="page-analytics">
+            <div class="analytics-page-grid">
+                <!-- Severity Distribution -->
+                <div class="panel analytics-panel">
+                    <div class="panel-header">
+                        <h2>SEVERITY DISTRIBUTION</h2>
+                    </div>
+                    <div class="chart-container chart-tall"><canvas id="severity-chart"></canvas></div>
+                </div>
+                <!-- Attack Trends -->
+                <div class="panel analytics-panel">
+                    <div class="panel-header">
+                        <h2>ATTACK TRENDS</h2>
+                    </div>
+                    <div class="chart-container chart-tall"><canvas id="trends-chart"></canvas></div>
+                </div>
+                <!-- MITRE ATT&CK Heatmap -->
+                <div class="panel analytics-panel analytics-full-width">
+                    <div class="panel-header">
+                        <h2>MITRE ATT&CK COVERAGE</h2>
+                    </div>
+                    <div class="mitre-grid" id="mitre-grid"></div>
+                </div>
+                <!-- Top Source IPs -->
+                <div class="panel analytics-panel">
+                    <div class="panel-header">
+                        <h2>TOP SOURCE IPs</h2>
+                    </div>
+                    <div class="ip-table-container">
+                        <table class="ip-table">
+                            <thead>
+                                <tr>
+                                    <th>IP Address</th>
+                                    <th>Count</th>
+                                    <th>%</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ip-table-body">
+                                <tr>
+                                    <td colspan="3" class="empty-state">No data yet</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- Signature Effectiveness -->
+                <div class="panel analytics-panel">
+                    <div class="panel-header">
+                        <h2>SIGNATURE EFFECTIVENESS</h2>
+                    </div>
+                    <div class="chart-container chart-tall"><canvas id="sig-effectiveness-chart"></canvas></div>
+                </div>
+                <!-- Kill Chain Summary -->
+                <div class="panel analytics-panel analytics-full-width">
+                    <div class="panel-header">
+                        <h2>KILL CHAIN DETECTION</h2>
+                    </div>
+                    <div class="kill-chain-container" id="kill-chain-container">
+                        <div class="empty-state">No kill chains detected</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== PAGE: INCIDENTS ===================== -->
+        <div class="page-content" id="page-incidents">
+            <div class="incidents-page-grid">
+                <div class="panel analytics-panel analytics-full-width">
+                    <div class="panel-header">
+                        <h2>INCIDENT TIMELINE</h2>
+                    </div>
+                    <div class="incidents-timeline" id="incidents-timeline">
+                        <div class="empty-state">No incidents recorded yet</div>
+                    </div>
+                </div>
+                <div class="panel analytics-panel">
+                    <div class="panel-header">
+                        <h2>INCIDENT STATS</h2>
+                    </div>
+                    <div class="model-perf-grid" id="incident-stats-grid">
+                        <div class="model-perf-card">
+                            <div class="perf-label">Total</div>
+                            <div class="perf-value" id="inc-total">0</div>
+                        </div>
+                        <div class="model-perf-card">
+                            <div class="perf-label">Critical</div>
+                            <div class="perf-value" id="inc-critical" style="color:var(--accent-red)">0</div>
+                        </div>
+                        <div class="model-perf-card">
+                            <div class="perf-label">High</div>
+                            <div class="perf-value" id="inc-high" style="color:#ff6b35">0</div>
+                        </div>
+                        <div class="model-perf-card">
+                            <div class="perf-label">Medium</div>
+                            <div class="perf-value" id="inc-medium" style="color:var(--accent-yellow)">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel analytics-panel">
+                    <div class="panel-header">
+                        <h2>PLAYBOOK LIBRARY</h2>
+                    </div>
+                    <div class="playbook-library" id="playbook-library">
+                        <div class="empty-state">Loading playbooks...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== PAGE: MODELS ===================== -->
+        <div class="page-content" id="page-models">
+            <div class="models-page-grid">
+                <div class="panel analytics-panel analytics-full-width">
+                    <div class="panel-header">
+                        <h2>MODEL & RL PERFORMANCE</h2>
+                    </div>
+                    <div class="model-perf-grid">
+                        <div class="model-perf-card">
+                            <div class="perf-label">Model Version</div>
+                            <div class="perf-value" id="perf-model-version">v1.0.0</div>
+                        </div>
+                        <div class="model-perf-card">
+                            <div class="perf-label">Health</div>
+                            <div class="perf-value" id="perf-model-health"><span class="health-badge green">GREEN</span>
+                            </div>
+                        </div>
+                        <div class="model-perf-card">
+                            <div class="perf-label">Drift Events (1h)</div>
+                            <div class="perf-value" id="perf-drift-count">0</div>
+                        </div>
+                        <div class="model-perf-card">
+                            <div class="perf-label">Shadow Model</div>
+                            <div class="perf-value" id="perf-shadow-status">Inactive</div>
+                        </div>
+                        <div class="model-perf-card">
+                            <div class="perf-label">RL Threshold</div>
+                            <div class="perf-value" id="perf-rl-threshold">0.98</div>
+                        </div>
+                        <div class="model-perf-card">
+                            <div class="perf-label">RL Evaluations</div>
+                            <div class="perf-value" id="perf-rl-evals">0</div>
+                        </div>
+                        <div class="model-perf-card">
+                            <div class="perf-label">Last RL Action</div>
+                            <div class="perf-value" id="perf-rl-action">—</div>
+                        </div>
+                        <div class="model-perf-card">
+                            <div class="perf-label">Auto-Adjustments</div>
+                            <div class="perf-value" id="perf-rl-adjustments">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel analytics-panel">
+                    <div class="panel-header">
+                        <h2>RETRAIN HISTORY</h2>
+                    </div>
+                    <div class="retrain-history" id="retrain-history">
+                        <div class="empty-state">No retraining events</div>
+                    </div>
+                </div>
+                <div class="panel analytics-panel">
+                    <div class="panel-header">
+                        <h2>RL Q-TABLE (Top Actions)</h2>
+                    </div>
+                    <div class="rl-qtable" id="rl-qtable">
+                        <div class="empty-state">Loading RL data...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== PAGE: SETTINGS ===================== -->
+        <div class="page-content" id="page-settings">
+            <div class="settings-page-grid">
+                <!-- Feature Toggles -->
+                <div class="panel analytics-panel">
+                    <div class="panel-header">
+                        <h2>FEATURE TOGGLES</h2>
+                    </div>
+                    <div class="settings-section" id="settings-toggles">
+                        <div class="setting-row"><span class="setting-name">RL Optimizer</span><span
+                                class="setting-value toggle-on" id="toggle-rl">ENABLED</span></div>
+                        <div class="setting-row"><span class="setting-name">Incident Response</span><span
+                                class="setting-value toggle-on" id="toggle-ir">ENABLED</span></div>
+                        <div class="setting-row"><span class="setting-name">Analytics</span><span
+                                class="setting-value toggle-on" id="toggle-analytics">ENABLED</span></div>
+                        <div class="setting-row"><span class="setting-name">Auto Retrain</span><span
+                                class="setting-value toggle-on" id="toggle-retrain">ENABLED</span></div>
+                        <div class="setting-row"><span class="setting-name">Kill Chain Detection</span><span
+                                class="setting-value toggle-on">ENABLED</span></div>
+                    </div>
+                </div>
+                <!-- LLM Analyzer -->
+                <div class="panel analytics-panel">
+                    <div class="panel-header">
+                        <h2>LLM ANALYZER (OLLAMA)</h2>
+                    </div>
+                    <div class="settings-section" id="llm-settings-panel">
+                        <div class="setting-row"><span class="setting-name">Status</span><span class="setting-value" id="llm-panel-status">Checking...</span></div>
+                        <div class="setting-row"><span class="setting-name">Model</span><span class="setting-value" id="llm-panel-model">—</span></div>
+                        <div class="setting-row"><span class="setting-name">Total Requests</span><span class="setting-value" id="llm-panel-requests">0</span></div>
+                        <div class="setting-row"><span class="setting-name">Cache Hits</span><span class="setting-value" id="llm-panel-cache">0</span></div>
+                        <div class="setting-row"><span class="setting-name">Avg Latency</span><span class="setting-value" id="llm-panel-latency">—</span></div>
+                        <div class="setting-row"><span class="setting-name">Fallback Mode</span><span class="setting-value" id="llm-panel-fallback">—</span></div>
+                    </div>
+                </div>
+                <!-- Signature Management -->
+                <div class="panel analytics-panel">
+                    <div class="panel-header">
+                        <h2>SIGNATURE DATABASE</h2>
+                    </div>
+                    <div class="sig-management" id="sig-management">
+                        <div class="sig-stats-row">
+                            <span>Total: <strong id="sig-total">0</strong></span>
+                            <span>Critical: <strong id="sig-crit">0</strong></span>
+                            <span>High: <strong id="sig-high">0</strong></span>
+                            <span>Medium: <strong id="sig-med">0</strong></span>
+                            <span>Low: <strong id="sig-low">0</strong></span>
+                        </div>
+                        <div class="sig-list" id="sig-list">
+                            <div class="empty-state">Loading signatures...</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- System Info -->
+                <div class="panel analytics-panel">
+                    <div class="panel-header">
+                        <h2>SYSTEM CONFIGURATION</h2>
+                    </div>
+                    <div class="settings-section">
+                        <div class="setting-row"><span class="setting-name">Correlation Window</span><span
+                                class="setting-value">300s</span></div>
+                        <div class="setting-row"><span class="setting-name">RL Eval Interval</span><span
+                                class="setting-value">50 alerts</span></div>
+                        <div class="setting-row"><span class="setting-name">Drift Threshold</span><span
+                                class="setting-value">3 events</span></div>
+                        <div class="setting-row"><span class="setting-name">Shadow Eval Packets</span><span
+                                class="setting-value">100</span></div>
+                        <div class="setting-row"><span class="setting-name">Max Incidents</span><span
+                                class="setting-value">100</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Alert Modal -->
         <div class="alert-modal" id="alert-modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>SECURITY ALERT</h2>
-                    <button class="close-btn" id="close-modal">×</button>
+                    <h2>SECURITY ALERT</h2><button class="close-btn" id="close-modal">×</button>
                 </div>
-                <div class="modal-body" id="modal-body">
-                    <!-- Alert details will be inserted here -->
-                </div>
+                <div class="modal-body" id="modal-body"></div>
             </div>
         </div>
     </div>
@@ -161,4 +489,5 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="script.js"></script>
 </body>
+
 </html>

@@ -30,6 +30,16 @@ function setStatus(message, state) {
     }
 }
 
+function getAuthToken() {
+    const explicit = window.__IDS_CONFIG__?.apiToken;
+    return explicit || localStorage.getItem('ids_token') || '';
+}
+
+function authHeaders() {
+    const token = getAuthToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function submitLogin(event) {
     event.preventDefault();
     const username = document.getElementById('username')?.value || '';
@@ -40,7 +50,7 @@ async function submitLogin(event) {
     try {
         const response = await fetch(`${resolveApiBase()}/api/login`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
             body: JSON.stringify({ username, password })
         });
 

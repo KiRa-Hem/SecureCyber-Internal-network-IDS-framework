@@ -1,6 +1,6 @@
 # SecureCyber IDS Model Card (CICIDS 2018 Packet)
 
-- Generated: 2026-01-27T15:23:00.154690Z
+- Generated: 2026-03-13T05:29:50.836479Z
 - Dataset: cicids2018
 - Split: by_day
 

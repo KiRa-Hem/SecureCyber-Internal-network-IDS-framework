@@ -90,7 +90,7 @@ Write-ColorOutput $GREEN "=============================================="
 Write-ColorOutput $BLUE "Backend server: http://localhost:8000"
 Write-ColorOutput $BLUE "API documentation: http://localhost:8000/docs"
 Write-ColorOutput $BLUE "Dashboard: http://localhost:8000"
-Write-ColorOutput $BLUE "Default credentials: admin/password"
+Write-ColorOutput $BLUE "Demo credentials are configured via DEMO_LOGIN_USERNAME / DEMO_LOGIN_PASSWORD"
 Write-ColorOutput $YELLOW "Press Ctrl+C in the terminal windows to stop the services"
 
 # Wait for user input to stop the demo

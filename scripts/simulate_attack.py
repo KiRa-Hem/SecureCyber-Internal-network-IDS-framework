@@ -231,8 +231,8 @@ def parse_arguments():
     
     parser.add_argument(
         "--server", 
-        default="ws://localhost:8765/ws",
-        help="WebSocket server URI (default: ws://localhost:8765/ws)"
+        default="ws://localhost:8000/ws",
+        help="WebSocket server URI (default: ws://localhost:8000/ws)"
     )
     
     parser.add_argument(

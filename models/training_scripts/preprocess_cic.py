@@ -334,6 +334,28 @@ def _json_safe(value: object) -> object:
     return value
 
 
+def _load_feedback_samples(feedback_path: Optional[Path], feature_columns: List[str]):
+    if not feedback_path:
+        return None, None, None
+    if not feedback_path.exists():
+        print(f"WARNING: feedback file not found: {feedback_path}")
+        return None, None, None
+    payload = json.loads(feedback_path.read_text(encoding="utf-8"))
+    samples = payload.get("samples") or []
+    if not samples:
+        return None, None, None
+    X_rows = []
+    y_labels = []
+    weights = []
+    for sample in samples:
+        features = sample.get("features") or {}
+        row = [float(features.get(col, 0.0)) for col in feature_columns]
+        X_rows.append(row)
+        y_labels.append(sample.get("label"))
+        weights.append(float(sample.get("weight", 1.0)))
+    return np.array(X_rows, dtype=np.float32), y_labels, np.array(weights, dtype=np.float32)
+
+
 # ----------------------------- stage 1: load
 
 def load_and_preprocess_day(
@@ -686,6 +708,7 @@ def train_model(
     split_payload: Dict[str, object],
     paths: Paths,
     feature_columns: Optional[List[str]] = None,
+    feedback_path: Optional[Path] = None,
 ) -> Dict[str, object]:
     try:
         import xgboost as xgb
@@ -696,11 +719,16 @@ def train_model(
 
     X_train = split_payload["X_train"]
     y_train = split_payload["y_train"]
+    feature_columns = feature_columns or list(getattr(X_train, "columns", []))
 
     target_type = CONFIG.get("target_type", "multiclass")
     normal_label = "Normal" if CONFIG.get("use_simplified") else "Benign"
 
     encoder = LabelEncoder()
+
+    feedback_X, feedback_labels, feedback_weights = _load_feedback_samples(
+        feedback_path, feature_columns
+    )
 
     if target_type == "binary":
         y_train_enc = (y_train != normal_label).astype(int)
@@ -731,7 +759,21 @@ def train_model(
     if target_type == "multiclass":
         model.set_params(num_class=num_class)
 
-    model.fit(X_train, y_train_enc)
+    sample_weight = None
+    if feedback_X is not None and feedback_labels is not None:
+        if target_type == "binary":
+            feedback_y = np.array(
+                [0 if str(label).lower() in {"benign", "normal"} else 1 for label in feedback_labels]
+            )
+        else:
+            feedback_y = encoder.fit_transform(feedback_labels)
+        X_train = np.vstack([np.asarray(X_train), feedback_X])
+        y_train_enc = np.concatenate([np.asarray(y_train_enc), feedback_y])
+        if feedback_weights is not None:
+            base_weights = np.ones(len(y_train_enc) - len(feedback_y), dtype=np.float32)
+            sample_weight = np.concatenate([base_weights, feedback_weights])
+
+    model.fit(X_train, y_train_enc, sample_weight=sample_weight)
 
     paths.model_dir.mkdir(parents=True, exist_ok=True)
     model.save_model(str(paths.model_path))
@@ -755,7 +797,7 @@ def train_model(
         else None,
         "classes": classes,
         "target_type": target_type,
-        "feature_columns": feature_columns or list(getattr(X_train, "columns", [])),
+        "feature_columns": feature_columns,
     }
 
 
@@ -910,7 +952,7 @@ def stage_scale(paths: Paths) -> None:
     print(f"Saved scaled dataset to: {paths.scale_path}")
 
 
-def stage_train(paths: Paths) -> Dict[str, object]:
+def stage_train(paths: Paths, feedback_path: Optional[Path]) -> Dict[str, object]:
     if paths.scale_path.exists():
         split_payload = load_pickle(paths.scale_path)
     else:
@@ -922,7 +964,12 @@ def stage_train(paths: Paths) -> Dict[str, object]:
         }
 
     feature_columns = load_feature_columns(paths)
-    training_meta = train_model(split_payload, paths, feature_columns=feature_columns)
+    training_meta = train_model(
+        split_payload,
+        paths,
+        feature_columns=feature_columns,
+        feedback_path=feedback_path,
+    )
     baseline_stats = compute_baseline_stats(split_payload["X_train"], feature_columns)
     update_model_metadata(
         paths,
@@ -1055,6 +1102,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_MODEL_DIR,
         help="Directory for model artifacts (default: models/cicids2018_packet)",
     )
+    parser.add_argument(
+        "--split-method",
+        choices=["random", "by_day", "by_source_ip"],
+        default=None,
+        help="Override split method for this run.",
+    )
+    parser.add_argument(
+        "--feedback-file",
+        type=Path,
+        default=None,
+        help="Optional feedback JSON file to inject into training.",
+    )
 
     subparsers = parser.add_subparsers(dest="stage", required=True)
 
@@ -1083,6 +1142,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+    if args.split_method:
+        CONFIG["split_method"] = args.split_method
     paths = Paths(output_dir=args.output_dir, model_dir=args.model_dir)
 
     training_meta: Dict[str, object] = {}
@@ -1102,7 +1163,7 @@ def main() -> None:
     elif args.stage == "scale":
         stage_scale(paths)
     elif args.stage == "train":
-        training_meta = stage_train(paths)
+        training_meta = stage_train(paths, args.feedback_file)
         (paths.model_dir / "train_metadata.json").write_text(
             json.dumps(_json_safe(training_meta), indent=2), encoding="utf-8"
         )

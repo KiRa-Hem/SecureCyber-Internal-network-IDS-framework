@@ -245,12 +245,8 @@
             "legendFormat": "Total"
           },
           {
-            "expr": "rate(ids_packets_processed_total{detector=\"rule_based\"}[5m])",
-            "legendFormat": "Rule-based"
-          },
-          {
-            "expr": "rate(ids_packets_processed_total{detector=\"xgboost\"}[5m])",
-            "legendFormat": "XGBoost"
+            "expr": "sum by (detector) (rate(ids_packets_processed_total[5m]))",
+            "legendFormat": "{{ detector }}"
           }
         ],
         "fieldConfig": {

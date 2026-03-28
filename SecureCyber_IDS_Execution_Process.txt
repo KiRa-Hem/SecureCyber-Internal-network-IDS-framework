@@ -1,0 +1,230 @@
+================================================================================
+  SecureCyber IDS/IPS — Step-by-Step Execution Guide
+  AI-Powered Intrusion Detection & Prevention System
+================================================================================
+
+PREREQUISITES
+─────────────
+  • Python 3.10+       → https://python.org  (check "Add Python to PATH")
+  • Git                → https://git-scm.com
+  • Npcap (Windows)    → https://nmap.org/npcap/  (select "WinPcap API-compatible Mode")
+  • MongoDB (optional) → Local install or MongoDB Atlas (system works without it using in-memory storage)
+  • Docker (optional)  → Only needed for containerized deployment
+
+Verify:
+  python --version     # must be 3.10+
+  git --version
+
+
+================================================================================
+  OPTION A — LOCAL DEVELOPMENT (Recommended for First Run)
+================================================================================
+
+STEP 1: Clone the Repository
+─────────────────────────────
+  git clone https://github.com/KiRa-Hem/SecureCyber-Internal-network-IDS-framework.git
+  cd SecureCyber-Internal-network-IDS-framework
+
+STEP 2: Create & Activate Virtual Environment
+──────────────────────────────────────────────
+  python -m venv .venv
+
+  # Windows PowerShell:
+  .\.venv\Scripts\Activate.ps1
+
+  # Linux / macOS:
+  source .venv/bin/activate
+
+  NOTE: If PowerShell blocks the script, run this first:
+  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+STEP 3: Install Dependencies
+─────────────────────────────
+  pip install --upgrade pip
+  pip install -r backend/requirements.txt
+
+STEP 4: Create Required Directories
+────────────────────────────────────
+  mkdir backend/data   2>$null
+  mkdir backend/logs   2>$null
+
+STEP 5: Configure Environment
+──────────────────────────────
+  Copy the example env file:
+    copy backend/.env.example backend/.env        # Windows
+    cp backend/.env.example backend/.env          # Linux/macOS
+
+  Then open backend/.env and set these values:
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  # Generate tokens with: python -c "import secrets; print(secrets.token_hex(32))"  │
+  │  API_TOKEN=<paste-generated-token>                                 │
+  │  ADMIN_TOKEN=<paste-generated-token>                               │
+  │  JWT_SECRET=<paste-generated-token>                                │
+  │                                                                    │
+  │  # MongoDB (leave as-is if you don't have MongoDB installed)       │
+  │  MONGODB_URI=mongodb://localhost:27017/ids                         │
+  │  MONGO_DB=ids                                                      │
+  │  MONGO_USER=                                                       │
+  │  MONGO_PASSWORD=                                                   │
+  │  MONGO_CLUSTER=                                                    │
+  │                                                                    │
+  │  # For demo without live packet capture:                           │
+  │  ENABLE_PACKET_CAPTURE=false                                       │
+  │  ENABLE_SIMULATION=true                                            │
+  │                                                                    │
+  │  # For live packet capture (requires Npcap + Admin privileges):    │
+  │  ENABLE_PACKET_CAPTURE=true                                        │
+  │  NETWORK_INTERFACE=Wi-Fi          # or Ethernet or auto            │
+  │  ENABLE_SIMULATION=false                                           │
+  │                                                                    │
+  │  # Demo login credentials                                         │
+  │  DEMO_LOGIN_USERNAME=demo_admin                                    │
+  │  DEMO_LOGIN_PASSWORD=<any-password-you-choose>                     │
+  └─────────────────────────────────────────────────────────────────────┘
+
+STEP 6: Set PYTHONPATH
+──────────────────────
+  # Windows PowerShell:
+  $env:PYTHONPATH = "$PWD\backend;$env:PYTHONPATH"
+
+  # Linux / macOS:
+  export PYTHONPATH="$(pwd)/backend:$PYTHONPATH"
+
+STEP 7: Start the Backend Server
+─────────────────────────────────
+  cd backend
+  python main.py
+
+  Server starts at → http://localhost:8000
+
+  You should see:
+    INFO: Starting SecureCyber IDS/IPS System...
+    INFO: Uvicorn running on http://0.0.0.0:8000
+
+STEP 8: Open the Dashboard
+───────────────────────────
+  Open a browser and go to:
+    http://localhost:8000            → Dashboard
+    http://localhost:8000/docs       → API Documentation (Swagger UI)
+
+STEP 9: Run a Demo (Optional — in a SEPARATE terminal)
+───────────────────────────────────────────────────────
+  Activate the venv again, set PYTHONPATH, then run:
+
+  # Conference demo (5-stage kill chain attack, ~2.5 min):
+  python scripts/conference_demo.py
+
+  # Or the traffic simulator (continuous):
+  python scripts/traffic_simulator.py
+
+  Watch the dashboard in real-time as alerts appear.
+
+STEP 10: Run Tests
+──────────────────
+  cd <project-root>
+  $env:PYTHONPATH = "$PWD\backend;$env:PYTHONPATH"    # if not already set
+  pytest
+
+
+================================================================================
+  OPTION B — DOCKER COMPOSE (All Services in Containers)
+================================================================================
+
+STEP 1: Clone the Repository
+─────────────────────────────
+  git clone https://github.com/KiRa-Hem/SecureCyber-Internal-network-IDS-framework.git
+  cd SecureCyber-Internal-network-IDS-framework
+
+STEP 2: Create Root .env File
+──────────────────────────────
+  Create a file named .env in the project root with:
+    API_TOKEN=<generate-random-token>
+    ADMIN_TOKEN=<generate-random-token>
+    JWT_SECRET=<generate-random-secret>
+    DEMO_LOGIN_USERNAME=demo_admin
+    DEMO_LOGIN_PASSWORD=<any-password>
+
+STEP 3: Build & Start
+──────────────────────
+  docker compose up --build
+
+  This launches 6 containers:
+    • Backend  (FastAPI)    → http://localhost:8000
+    • Frontend (Nginx)      → http://localhost
+    • MongoDB               → localhost:27017
+    • Redis                 → localhost:6379
+    • Prometheus            → http://localhost:9090
+    • Grafana               → http://localhost:3000 (login: admin/admin)
+
+STEP 4: Stop
+────────────
+  docker compose down
+
+
+================================================================================
+  ONE-CLICK DEMO (Windows PowerShell)
+================================================================================
+
+  If you just want to see it run immediately:
+
+  cd <project-root>
+  .\scripts\setup_env.ps1          # First-time setup (creates venv, installs deps)
+  .\scripts\run_demo.ps1           # Starts server + traffic simulator + opens browser
+
+
+================================================================================
+  ACCESS POINTS SUMMARY
+================================================================================
+
+  Dashboard         → http://localhost:8000
+  API Docs (Swagger)→ http://localhost:8000/docs
+  Health Check      → http://localhost:8000/health
+  WebSocket         → ws://localhost:8000/ws?token=<API_TOKEN>
+  Prometheus        → http://localhost:9090  (Docker only)
+  Grafana           → http://localhost:3000  (Docker only)
+
+
+================================================================================
+  KEY API ENDPOINTS (all require X-Api-Key header)
+================================================================================
+
+  GET  /health                    Health check (no auth needed)
+  GET  /api/stats                 Network statistics
+  GET  /api/alerts                Recent alerts
+  GET  /api/analytics             Aggregated analytics
+  GET  /api/incidents             Active incidents
+  GET  /api/kill-chains           Kill chain tracking
+  GET  /api/mitre-coverage        MITRE ATT&CK coverage
+  GET  /api/model-status          ML model health
+  GET  /api/rl-status             RL optimizer status
+  GET  /api/signatures            Detection signatures (32 rules)
+  POST /api/simulate-attack       Inject test attack (admin only)
+  POST /api/block-ip              Block an IP (admin only)
+  GET  /api/blocklist             View blocked IPs
+  GET  /metrics                   Prometheus metrics
+
+
+================================================================================
+  COMMON ISSUES & FIXES
+================================================================================
+
+  "No module named 'app'"
+    → Set PYTHONPATH:  $env:PYTHONPATH = "$PWD\backend"
+
+  "MongoDB unavailable"
+    → Normal warning. System uses in-memory storage. No action needed.
+
+  "Permission denied" (packet capture)
+    → Run PowerShell as Administrator.
+
+  "Npcap not found"
+    → Install from https://nmap.org/npcap/ with "WinPcap API-compatible Mode".
+
+  "Execution policy" error on .ps1 scripts
+    → Run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+  Dashboard shows no alerts
+    → Set ENABLE_SIMULATION=true in backend/.env, or run:
+      python scripts/conference_demo.py
+
+================================================================================

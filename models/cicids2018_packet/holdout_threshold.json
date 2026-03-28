@@ -1,28 +1,29 @@
 {
   "model_dir": "C:\\Users\\hemes\\OneDrive\\Desktop\\IDS\\models\\cicids2018_packet",
-  "data_dir": "models\\training_scripts\\data\\raw\\CICIDS 2018",
+  "data_dir": "C:\\Users\\hemes\\OneDrive\\Desktop\\IDS\\models\\training_scripts\\data\\raw\\CICIDS 2018",
   "days": [
+    "02-14-2018.csv",
     "02-28-2018.csv",
     "03-01-2018.csv",
     "03-02-2018.csv"
   ],
-  "rows": 1992746,
-  "best_threshold": 4.733551395474933e-05,
-  "best_f1": 0.6022397672334374,
+  "rows": 3041321,
+  "best_threshold": 6.66732739773579e-05,
+  "best_f1": 0.7368275192366208,
   "metrics_at_best": {
-    "accuracy": 0.8024248950945078,
-    "precision": 0.5502187517306307,
-    "recall": 0.6651246861924687,
-    "f1": 0.6022397672339329,
-    "roc_auc": 0.741528353266353,
-    "pr_auc": 0.447262343571592
+    "accuracy": 0.8413824124451185,
+    "precision": 0.6726479151290227,
+    "recall": 0.8145461080675549,
+    "f1": 0.7368275192371163,
+    "roc_auc": 0.8534942904709442,
+    "pr_auc": 0.766518764509029
   },
   "metrics_at_0.5": {
-    "accuracy": 0.7671474437785849,
-    "precision": 0.09218292870707796,
-    "recall": 0.0040078103207810325,
-    "f1": 0.0076816478759987004,
-    "roc_auc": 0.741528353266353,
-    "pr_auc": 0.447262343571592
+    "accuracy": 0.8177111196088804,
+    "precision": 0.9059744421223148,
+    "recall": 0.36966905246093834,
+    "f1": 0.5250851276164696,
+    "roc_auc": 0.8534942904709442,
+    "pr_auc": 0.766518764509029
   }
 }

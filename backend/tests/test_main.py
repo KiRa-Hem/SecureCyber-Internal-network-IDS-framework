@@ -3,6 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 os.environ.setdefault("API_TOKEN", "test-token")
+os.environ.setdefault("ADMIN_TOKEN", "test-token")
 os.environ.setdefault("ENABLE_PACKET_CAPTURE", "false")
 
 from app.main import app
@@ -92,3 +93,49 @@ def test_get_stats():
     assert response.status_code == 200
     assert "packets_analyzed" in response.json()
     assert "threats_detected" in response.json()
+
+# --- LLM endpoint tests ---
+
+def test_llm_status():
+    response = client.get("/api/llm-status", headers=AUTH_HEADERS)
+    assert response.status_code == 200
+    data = response.json()
+    assert "enabled" in data
+    assert "model" in data
+    assert "total_requests" in data
+
+def test_llm_analyze_alert():
+    response = client.post(
+        "/api/llm-analyze",
+        headers=AUTH_HEADERS,
+        json={
+            "source_ip": "192.168.1.100",
+            "dest_ip": "10.0.0.5",
+            "protocol": "TCP",
+            "attack_types": ["SQL Injection"],
+            "confidence": 0.95,
+            "payload_snippet": "' OR 1=1 --",
+            "description": "SQL Injection detected",
+        }
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "verdict" in data
+    assert data["verdict"] in {"true_positive", "false_positive", "uncertain"}
+    assert "confidence" in data
+
+def test_llm_analyze_payload():
+    response = client.post(
+        "/api/llm-payload",
+        headers=AUTH_HEADERS,
+        json={
+            "payload": "<script>alert('XSS')</script>",
+            "protocol": "TCP",
+            "src_port": 12345,
+            "dst_port": 80,
+        }
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "is_malicious" in data
+

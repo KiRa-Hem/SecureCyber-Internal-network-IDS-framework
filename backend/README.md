@@ -1,40 +1,52 @@
-# SOC IDS Backend
+# SecureCyber IDS Backend
 
-This is the backend for the SOC (Security Operations Center) Intrusion Detection System (IDS) dashboard. It provides real-time attack detection and mitigation capabilities.
+FastAPI backend for the SecureCyber IDS/IPS platform.
 
-## Features
+## What it provides
+- REST APIs for alerts, stats, blocklist, isolation, simulation, and token issuance.
+- WebSocket stream for real-time dashboard updates (`/ws`).
+- Detection pipeline with rule-based, DoS, XGBoost, and Isolation Forest anomaly detection (dual pipeline).
+- MongoDB-backed persistence with in-memory fallback.
+- Prometheus metrics endpoint (`/metrics`).
 
-- Real-time attack detection using rule-based signatures, DDoS detection, and machine learning
-- WebSocket communication with the frontend for real-time updates
-- Mitigation actions including IP blocking and node isolation
-- Event correlation to identify complex attack patterns
-- RESTful API for management and monitoring
-- Docker support for easy deployment
+## Run locally
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python main.py
+```
 
-## Architecture
+Server defaults to `http://localhost:8000`.
 
-The backend consists of the following components:
+## Required security configuration
+Set these in `backend/.env` or process environment:
+- `API_TOKEN`
+- `ADMIN_TOKEN`
+- `JWT_SECRET`
 
-1. **FastAPI Web Server**: Handles HTTP requests and WebSocket connections
-2. **Sensor Workers**: Simulate network sensors at different locations (edge, internal)
-3. **Detectors**: Implement different detection methods:
-   - Rule-based detection for SQL injection, XSS, command injection, etc.
-   - DDoS detection based on request rate
-   - Machine learning-based anomaly detection
-4. **Correlation Engine**: Correlates events from multiple sensors
-5. **Mitigation Engine**: Implements blocking and isolation actions
-6. **Database**: SQLite for storing alerts and mitigation actions
+By default, protected APIs and WebSocket access are denied if auth is not configured.
+For local throwaway demos only, you can set:
+- `AUTH_ALLOW_INSECURE_NO_AUTH=true`
 
-## Quick Start
+## Demo login endpoint
+`POST /api/login` requires:
+- `DEMO_LOGIN_USERNAME`
+- `DEMO_LOGIN_PASSWORD`
 
-### Prerequisites
+No hardcoded default credentials are shipped.
 
-- Python 3.10+
-- Docker and Docker Compose (optional)
+## Database
+MongoDB is the primary datastore (`MONGODB_URI` or computed from `MONGO_*` vars).
+Collections include:
+- `alerts`
+- `blocklist`
+- `isolated_nodes`
+- `audit_logs`
+- `alert_feedback`
 
-### Running with Docker
-
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd soc-ids-backend
+## Testing
+From repo root:
+```bash
+pytest -q
+```

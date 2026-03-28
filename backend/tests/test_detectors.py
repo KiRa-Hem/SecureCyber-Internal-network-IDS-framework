@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from app.detectors.rule_based import RuleBasedDetector
 from app.detectors.ddos_detector import DoSDetector
 
@@ -72,7 +72,7 @@ class TestDoSDetector:
             if i >= 5:
                 assert alert is not None
                 assert "DDoS" in alert["attacks"]
-                assert alert["confidence"] >= 60
+                assert alert["confidence"] >= 0.60
     
     def test_legitimate_traffic(self):
         # Send requests from different IPs

@@ -112,7 +112,15 @@ def main() -> None:
     print(f"Using model: {model_path}")
     print(f"Holdout days: {', '.join(args.days)}")
 
-    df = load_days(data_dir, args.days, args.chunksize, fill_na_value=0.0, drop_na=False)
+    split_method = CONFIG.get("split_method", "by_day")
+    df = load_days(
+        data_dir,
+        args.days,
+        args.chunksize,
+        fill_na_value=0.0,
+        drop_na=False,
+        split_method=split_method,
+    )
     df, _selected = select_features(df)
     if CONFIG.get("use_simplified", True):
         df = simplify_labels(df)

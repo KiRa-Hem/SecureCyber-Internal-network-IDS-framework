@@ -5,11 +5,13 @@ import sys
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock
+from starlette.websockets import WebSocketDisconnect
 
 # Add the backend directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
 from app.main import app, manager
+import app.main as main_module
 
 
 @pytest.fixture
@@ -22,6 +24,16 @@ def test_websocket_connection(client):
     """Verify the WebSocket endpoint accepts authenticated connections."""
     with client.websocket_connect("/ws?token=test-token") as websocket:
         websocket.send_text("ping")
+
+
+def test_websocket_requires_auth_token(client, monkeypatch):
+    monkeypatch.setattr(main_module.settings, "API_TOKEN", "viewer-token", raising=False)
+    monkeypatch.setattr(main_module.settings, "ADMIN_TOKEN", "admin-token", raising=False)
+    monkeypatch.setattr(main_module.settings, "AUTH_ALLOW_INSECURE_NO_AUTH", False, raising=False)
+
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect("/ws") as websocket:
+            websocket.send_text("ping")
 
 
 @pytest.mark.asyncio

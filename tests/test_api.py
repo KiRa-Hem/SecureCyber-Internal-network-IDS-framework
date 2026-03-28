@@ -1,12 +1,13 @@
 import pytest
 import os
 import sys
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 # Add the backend directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
 from app.main import app
+import app.main as main_module
 
 def test_health_check(client):
     """Test health check endpoint."""
@@ -27,6 +28,32 @@ def test_get_blocklist(client, auth_headers):
     assert response.status_code == 200
     data = response.json()
     assert "blocklist" in data
+
+def test_protected_api_requires_auth_configuration(client, monkeypatch):
+    monkeypatch.setattr(main_module.settings, "API_TOKEN", None, raising=False)
+    monkeypatch.setattr(main_module.settings, "ADMIN_TOKEN", None, raising=False)
+    monkeypatch.setattr(main_module.settings, "JWT_SECRET", None, raising=False)
+    monkeypatch.setattr(main_module.settings, "AUTH_ALLOW_INSECURE_NO_AUTH", False, raising=False)
+
+    response = client.get("/api/blocklist")
+    assert response.status_code == 503
+
+def test_viewer_token_cannot_access_admin_endpoint(client, monkeypatch):
+    monkeypatch.setattr(main_module.settings, "API_TOKEN", "viewer-token", raising=False)
+    monkeypatch.setattr(main_module.settings, "ADMIN_TOKEN", "admin-token", raising=False)
+    monkeypatch.setattr(main_module.settings, "JWT_SECRET", None, raising=False)
+    monkeypatch.setattr(main_module.settings, "AUTH_ALLOW_INSECURE_NO_AUTH", False, raising=False)
+
+    response = client.post(
+        "/api/block-ip",
+        headers={"Authorization": "Bearer viewer-token"},
+        json={
+            "ip": "192.168.1.100",
+            "reason": "Test blocking",
+            "ttl_seconds": 3600
+        },
+    )
+    assert response.status_code == 403
 
 def test_block_ip(client, auth_headers):
     """Test block IP endpoint."""
@@ -194,27 +221,28 @@ def test_get_stats(client, auth_headers):
         assert "sensor_status" in data
         assert "top_attackers" in data
 
-def test_simulate_attack(client, auth_headers):
+def test_simulate_attack(client, auth_headers, monkeypatch):
     """Test simulate attack endpoint."""
-    with patch('app.main.settings') as mock_settings:
-        mock_settings.enable_simulation = True
-        mock_settings.API_TOKEN = "test-token"
+    monkeypatch.setattr(main_module.settings, "ENABLE_SIMULATION", True, raising=False)
+    monkeypatch.setattr(main_module.settings, "API_TOKEN", "test-token", raising=False)
+    monkeypatch.setattr(main_module.settings, "ADMIN_TOKEN", "test-token", raising=False)
+    monkeypatch.setattr(main_module.settings, "AUTH_ALLOW_INSECURE_NO_AUTH", False, raising=False)
 
-        response = client.post(
-            "/api/simulate-attack",
-            headers=auth_headers,
-            json={
-                "attack_type": "SQL Injection",
-                "source_ip": "192.168.1.100",
-                "target_ip": "10.0.0.1",
-                "payload": "GET /search?q=' OR '1'='1' -- HTTP/1.1\r\nHost: example.com"
-            }
-        )
-        
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
-        assert data["message"] == "Attack simulated"
+    response = client.post(
+        "/api/simulate-attack",
+        headers=auth_headers,
+        json={
+            "attack_type": "SQL Injection",
+            "source_ip": "192.168.1.100",
+            "target_ip": "10.0.0.1",
+            "payload": "GET /search?q=' OR '1'='1' -- HTTP/1.1\r\nHost: example.com"
+        }
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert data["message"] == "Attack simulated"
 
 def test_metrics_endpoint(client, auth_headers):
     """Test Prometheus metrics endpoint."""

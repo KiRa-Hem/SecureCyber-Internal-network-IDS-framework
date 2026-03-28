@@ -1,19 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SecureCyber Login Demo</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Roboto+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Roboto+Mono:wght@300;400&display=swap"
+        rel="stylesheet">
+    <script>
+        window.__IDS_CONFIG__ = {
+            apiToken: 'e666e72ad209739a71f87a71522a5c13036e86bd60bec7121bd15163ef93f8a2'
+        };
+    </script>
 </head>
+
 <body class="login-body">
     <div class="login-shell">
         <div class="login-card">
             <h1>SecureCyber Login Demo</h1>
             <p>
-                Use <strong>admin / admin123</strong> for a clean login. Try a SQL injection payload
-                such as <strong>admin' OR '1'='1</strong> to trigger IDS detection.
+                Use your configured demo credentials from <code>DEMO_LOGIN_USERNAME</code> /
+                <code>DEMO_LOGIN_PASSWORD</code>. Try a SQL injection payload such as
+                <strong>admin' OR '1'='1</strong> to trigger IDS detection.
+                Requests require an auth token (`ids_token` in localStorage or `window.__IDS_CONFIG__.apiToken`).
             </p>
             <form class="login-form" id="login-form">
                 <label class="login-field" for="username">
@@ -36,4 +47,5 @@
     </div>
     <script src="login.js"></script>
 </body>
+
 </html>

@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # Packet Capture
     ENABLE_PACKET_CAPTURE: bool = False
     NETWORK_INTERFACE: str = 'auto'
-    CAPTURE_FILTER: str = 'tcp or udp'
+    CAPTURE_FILTER: str = 'tcp or udp and not multicast and not broadcast'
     
     # Redis
     ENABLE_REDIS: bool = False
@@ -36,15 +36,27 @@ class Settings(BaseSettings):
     REDIS_DB: int = 0
     
     # Detection settings
-    CONFIDENCE_THRESHOLD: float = 0.7
+    CONFIDENCE_THRESHOLD: float = 0.98
     MODEL_PATH: str = '../models'
     RETRAIN_THRESHOLD: int = 100
     CORRELATION_WINDOW_SECONDS: int = 300
     FEATURE_SCHEMA: str = 'auto'
     ENABLE_ANOMALY_DETECTION: bool = True
-    ANOMALY_SCORE_THRESHOLD: Optional[float] = None
+    ANOMALY_SCORE_THRESHOLD: Optional[float] = -0.15
     ANOMALY_CONTAMINATION: float = 0.01
     ANOMALY_WARMUP_SAMPLES: int = 500
+    # Dual-pipeline risk fusion (xgboost + anomaly + drift)
+    RISK_SCORING_ENABLED: bool = True
+    RISK_WEIGHT_XGBOOST: float = 0.55
+    RISK_WEIGHT_ANOMALY: float = 0.30
+    RISK_WEIGHT_DRIFT: float = 0.15
+    RISK_MIN_COMPONENT_SCORE: float = 0.5
+    RISK_ALERT_THRESHOLD: float = 0.75
+    RISK_ALERT_MIN_SIGNALS: int = 1
+    RISK_AUTOBLOCK_ENABLED: bool = False
+    RISK_AUTOBLOCK_THRESHOLD: float = 0.92
+    RISK_AUTOBLOCK_MIN_SIGNALS: int = 2
+    RISK_AUTOBLOCK_TTL_SECONDS: int = 300
 
     # Demo/simulation
     ENABLE_SIMULATION: bool = False
@@ -70,11 +82,15 @@ class Settings(BaseSettings):
     RATE_LIMIT_WINDOW: int = 60
     API_TOKEN: Optional[str] = None
     ADMIN_TOKEN: Optional[str] = None
+    AUTH_ALLOW_INSECURE_NO_AUTH: bool = False
+    DEMO_LOGIN_USERNAME: Optional[str] = None
+    DEMO_LOGIN_PASSWORD: Optional[str] = None
     JWT_SECRET: Optional[str] = None
     JWT_ALGORITHM: str = "HS256"
     JWT_ISSUER: Optional[str] = None
     JWT_AUDIENCE: Optional[str] = None
     JWT_EXP_SECONDS: int = 3600
+    XGBOOST_MIN_RUNTIME_THRESHOLD: float = 0.5
     CORS_ORIGINS: List[str] = [
         'http://localhost',
         'http://127.0.0.1',
@@ -102,7 +118,44 @@ class Settings(BaseSettings):
     DRIFT_Z_THRESHOLD: float = 3.0
     DRIFT_MIN_FEATURES: int = 4
     DRIFT_COOLDOWN_SECONDS: int = 300
-    
+
+    # Baseline + adaptive thresholds
+    BASELINE_ALPHA: float = 0.05
+    BASELINE_MIN_SAMPLES: int = 200
+    ADAPTIVE_ANOMALY_ENABLED: bool = True
+    ADAPTIVE_ANOMALY_WINDOW: int = 500
+    ADAPTIVE_ANOMALY_QUANTILE: float = 0.01
+    ADAPTIVE_ANOMALY_MIN_SAMPLES: int = 200
+
+    # RL optimizer (autonomous threshold tuning)
+    RL_ENABLED: bool = True
+    RL_EVAL_INTERVAL: int = 50
+    RL_AUTO_APPLY: bool = True
+    RL_THRESHOLD_STEP: float = 0.02
+    RL_THRESHOLD_MIN: float = 0.3
+    RL_THRESHOLD_MAX: float = 0.99
+
+    # Incident response
+    IR_ENABLED: bool = True
+    IR_MAX_INCIDENTS: int = 200
+
+    # Ollama LLM
+    LLM_ENABLED: bool = True
+    LLM_BASE_URL: str = "http://localhost:11434"
+    LLM_MODEL: str = "mistral"
+    LLM_TIMEOUT_SECONDS: int = 30
+    LLM_MAX_CONCURRENT: int = 3
+    LLM_CACHE_TTL_SECONDS: int = 300
+
+    # Analytics tracking
+    ANALYTICS_ENABLED: bool = True
+    ANALYTICS_HOURLY_BUCKETS: int = 24
+
+    # Autonomous model updating
+    AUTO_RETRAIN_ENABLED: bool = True
+    AUTO_RETRAIN_DRIFT_THRESHOLD: int = 3
+    SHADOW_MODEL_EVAL_PACKETS: int = 100
+
     # Computed properties
     @property
     def MONGO_URI_COMPUTED(self) -> str:
@@ -112,7 +165,7 @@ class Settings(BaseSettings):
             f'mongodb+srv://{self.MONGO_USER}:{self.MONGO_PASSWORD}@{self.MONGO_CLUSTER}/{self.MONGO_DB}'
             '?retryWrites=true&w=majority'
         )
-    
+
     @property
     def enable_redis(self) -> bool:
         return self.ENABLE_REDIS

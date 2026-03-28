@@ -1,0 +1,48 @@
+{
+  "model_dir": "C:\\Users\\hemes\\OneDrive\\Desktop\\IDS\\models\\cicids2018_packet",
+  "data_dir": "C:\\Users\\hemes\\OneDrive\\Desktop\\IDS\\models\\training_scripts\\data\\raw\\CICIDS 2018",
+  "days": [
+    "02-14-2018.csv",
+    "02-28-2018.csv",
+    "03-01-2018.csv",
+    "03-02-2018.csv"
+  ],
+  "rows": 3041321,
+  "metrics": {
+    "accuracy": 0.6393537545033885,
+    "precision": 0.38226140485874466,
+    "recall": 0.5242945744288205,
+    "f1": 0.44215158282554307,
+    "roc_auc": 0.6380470032582881,
+    "pr_auc": 0.5253198488504591
+  },
+  "confusion_matrix": [
+    [
+      1509801,
+      702446
+    ],
+    [
+      394395,
+      434679
+    ]
+  ],
+  "feature_columns": [
+    "Dst Port",
+    "Protocol",
+    "TotLen Fwd Pkts",
+    "Fwd Pkt Len Max",
+    "Fwd Pkt Len Mean",
+    "Flow Byts/s",
+    "PSH Flag Cnt",
+    "URG Flag Cnt",
+    "FIN Flag Cnt",
+    "SYN Flag Cnt",
+    "RST Flag Cnt",
+    "ACK Flag Cnt",
+    "Fwd Header Len",
+    "Fwd Pkt Len Min",
+    "Fwd Pkt Len Std",
+    "Down/Up Ratio",
+    "Fwd Pkts/s"
+  ]
+}

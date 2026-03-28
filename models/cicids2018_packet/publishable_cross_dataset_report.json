@@ -1,0 +1,58 @@
+{
+  "model": "XGBoost (CICIDS2018 packet-level features)",
+  "in_dataset_test_split": {
+    "accuracy": 0.9936877637130802,
+    "attack_precision": 0.9968891057704038,
+    "attack_recall": 0.99551269035533,
+    "attack_f1": 0.996200422626788,
+    "support": 98500.0
+  },
+  "strict_unseen_days_holdout": {
+    "days": [
+      "02-14-2018.csv",
+      "02-28-2018.csv",
+      "03-01-2018.csv",
+      "03-02-2018.csv"
+    ],
+    "rows": 3041321,
+    "accuracy": 0.6393537545033885,
+    "attack_precision": 0.38226140485874466,
+    "attack_recall": 0.5242945744288205,
+    "attack_f1": 0.44215158282554307,
+    "roc_auc": 0.6380470032582881,
+    "pr_auc": 0.5253198488504591
+  },
+  "cross_dataset_eval": {
+    "train": "CICIDS2018 (packet-level features)",
+    "test": "CIC (cic.csv)",
+    "accuracy": 0.7999485044761862,
+    "attack_precision": 0.6457241074198191,
+    "attack_recall": 1.0,
+    "attack_f1": 0.7847294750177671,
+    "roc_auc": 0.906093556602374,
+    "pr_auc": 0.8682345391383723,
+    "note": "CIC cross-dataset metrics improved after source-IP holdout retraining and calibration."
+  },
+  "cross_eval_cicids2018_all_days": {
+    "accuracy": 0.6032040412505701,
+    "attack_precision": 0.11957072522681221,
+    "attack_recall": 0.20917357315465168,
+    "attack_f1": 0.1521610319237439,
+    "note": "Aggregated evaluation across all CICIDS2018 days remains weak, with strong day-to-day variance and poor recall on several days."
+  },
+  "publishable_claims": {
+    "allowed": [
+      "Strong in-dataset performance on CICIDS2018 test split.",
+      "Moderate generalization to unseen CICIDS2018 days (holdout).",
+      "Cross-dataset performance on CIC (cic.csv) improved after retraining."
+    ],
+    "not_allowed": [
+      "No claim of robust performance across all CICIDS2018 days.",
+      "No claim of production readiness for arbitrary client environments without client traffic validation."
+    ]
+  },
+  "production_release_gate": {
+    "ready": false,
+    "reason": "Despite improved CIC cross-dataset metrics, all-days CICIDS2018 evaluation remains weak and inconsistent; client traffic validation is still required."
+  }
+}

@@ -28,6 +28,11 @@ def parse_args():
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--output-dir", type=Path, default=Path("models/training_scripts/data/cicids2018_pipeline"))
     parser.add_argument("--model-dir", type=Path, default=Path("models/cicids2018_packet"))
+    parser.add_argument(
+        "--feedback-file",
+        type=Path,
+        default=Path("models/training_scripts/data/feedback_labels.json"),
+    )
     return parser.parse_args()
 
 
@@ -61,6 +66,16 @@ def main() -> None:
             print(f"Drift check failed: {exc}. Use --force to retrain anyway.")
             return
 
+    export_cmd = [
+        "python",
+        "models/training_scripts/export_feedback.py",
+        "--mongo-uri",
+        args.mongo_uri,
+        "--output",
+        str(args.feedback_file),
+    ]
+    subprocess.run(export_cmd, check=False)
+
     pipeline = [
         ["python", "models/training_scripts/preprocess_cic.py", "load"],
         ["python", "models/training_scripts/preprocess_cic.py", "select"],
@@ -68,7 +83,13 @@ def main() -> None:
         ["python", "models/training_scripts/preprocess_cic.py", "balance"],
         ["python", "models/training_scripts/preprocess_cic.py", "split"],
         ["python", "models/training_scripts/preprocess_cic.py", "scale"],
-        ["python", "models/training_scripts/preprocess_cic.py", "train"],
+        [
+            "python",
+            "models/training_scripts/preprocess_cic.py",
+            "--feedback-file",
+            str(args.feedback_file),
+            "train",
+        ],
         ["python", "models/training_scripts/preprocess_cic.py", "train-anomaly"],
         ["python", "models/training_scripts/preprocess_cic.py", "evaluate"],
     ]

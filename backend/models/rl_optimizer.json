@@ -1,0 +1,27 @@
+{
+  "3:1": {
+    "decrease_sensitivity": 3.513786056231288,
+    "hold": 1.7855425504143534,
+    "increase_sensitivity": 0.9732613762463989
+  },
+  "4:0": {
+    "decrease_sensitivity": 6.670952916184129,
+    "hold": 6.720477753145598,
+    "increase_sensitivity": 6.8868593994243605
+  },
+  "0:4": {
+    "decrease_sensitivity": -5.356660788646758,
+    "hold": -5.364974871669951,
+    "increase_sensitivity": -5.3410208861331965
+  },
+  "1:3": {
+    "decrease_sensitivity": -0.02175000000000002,
+    "hold": -0.017321831193020307,
+    "increase_sensitivity": 0.0
+  },
+  "2:2": {
+    "decrease_sensitivity": 0.25229561544098483,
+    "hold": 0.0,
+    "increase_sensitivity": 0.0
+  }
+}

@@ -39,8 +39,9 @@ class DoSDetector:
         # Check if threshold is exceeded
         if requests_in_window >= self.threshold:
             # Calculate confidence based on how much the threshold is exceeded
+            # Normalized to 0.0–1.0 scale consistent with all other detectors
             overage = requests_in_window - self.threshold
-            confidence = min(95, 60 + overage * 5)
+            confidence = min(0.95, 0.60 + overage * 0.05)
             
             return {
                 "id": str(uuid.uuid4()),

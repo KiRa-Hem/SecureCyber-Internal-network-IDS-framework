@@ -40,10 +40,8 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(
-        transparent 50%,
-        rgba(0, 255, 255, 0.03) 50%
-    );
+    background: linear-gradient(transparent 50%,
+            rgba(0, 255, 255, 0.03) 50%);
     background-size: 100% 4px;
     pointer-events: none;
     z-index: 100;
@@ -113,9 +111,17 @@ body {
 }
 
 @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
 }
 
 .status-text {
@@ -147,7 +153,11 @@ body {
 
 .right-panel {
     flex: 1;
-    overflow: hidden;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
 }
 
 /* Panel Styling */
@@ -394,7 +404,8 @@ body {
 
 /* Network Panel */
 .network-panel {
-    height: 100%;
+    flex: 1 1 auto;
+    min-height: 450px;
     display: flex;
     flex-direction: column;
 }
@@ -613,4 +624,815 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 255, 255, 0.5);
+}
+
+/* ================================================================
+   CATEGORY 1 UPGRADES — New component styles
+   ================================================================ */
+
+/* Header Indicators */
+.header-indicators {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.indicator-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 255, 255, 0.15);
+    border-radius: 6px;
+}
+
+.indicator-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    letter-spacing: 1px;
+}
+
+.indicator-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+.indicator-dot.green {
+    background: var(--accent-green);
+    box-shadow: 0 0 8px var(--accent-green);
+}
+
+.indicator-dot.yellow {
+    background: var(--accent-yellow);
+    box-shadow: 0 0 8px var(--accent-yellow);
+}
+
+.indicator-dot.red {
+    background: var(--accent-red);
+    box-shadow: 0 0 8px var(--accent-red);
+}
+
+.indicator-value {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 11px;
+    color: var(--text-primary);
+}
+
+/* Incident Response Panel */
+.incident-panel {
+    flex: 0 0 auto;
+    max-height: 280px;
+}
+
+.incident-badge {
+    background: var(--accent-purple);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--glow-purple);
+}
+
+.incident-list {
+    overflow-y: auto;
+    padding: 8px;
+    max-height: 220px;
+}
+
+.incident-card {
+    background: rgba(0, 0, 0, 0.25);
+    border-left: 3px solid var(--accent-purple);
+    border-radius: 4px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.incident-card:hover {
+    background: rgba(157, 78, 221, 0.12);
+    box-shadow: 0 0 10px rgba(157, 78, 221, 0.25);
+}
+
+.incident-card.severity-critical {
+    border-left-color: var(--accent-red);
+}
+
+.incident-card.severity-high {
+    border-left-color: #ff6b35;
+}
+
+.incident-card.severity-medium {
+    border-left-color: var(--accent-yellow);
+}
+
+.incident-card.severity-low {
+    border-left-color: var(--accent-green);
+}
+
+.incident-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.incident-id {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    color: var(--accent-cyan);
+}
+
+.severity-tag {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.severity-tag.critical {
+    background: rgba(255, 0, 64, 0.25);
+    color: var(--accent-red);
+}
+
+.severity-tag.high {
+    background: rgba(255, 107, 53, 0.25);
+    color: #ff6b35;
+}
+
+.severity-tag.medium {
+    background: rgba(255, 190, 11, 0.25);
+    color: var(--accent-yellow);
+}
+
+.severity-tag.low {
+    background: rgba(0, 255, 136, 0.25);
+    color: var(--accent-green);
+}
+
+.incident-narrative {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.playbook-steps {
+    margin-top: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.playbook-step {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(0, 255, 255, 0.08);
+    border: 1px solid rgba(0, 255, 255, 0.15);
+    color: var(--text-secondary);
+}
+
+.playbook-step.automated {
+    background: rgba(0, 255, 136, 0.1);
+    border-color: rgba(0, 255, 136, 0.2);
+    color: var(--accent-green);
+}
+
+/* Analytics Row */
+.analytics-row {
+    display: flex;
+    gap: 10px;
+}
+
+.analytics-panel {
+    flex: 0 0 auto;
+}
+
+.analytics-half {
+    flex: 1;
+    min-height: 220px;
+}
+
+.analytics-full {
+    flex: 1;
+    width: 100%;
+}
+
+.chart-container {
+    padding: 10px;
+    height: 250px;
+    position: relative;
+}
+
+.chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* MITRE ATT&CK Grid */
+.mitre-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 4px;
+    padding: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.mitre-tactic {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 255, 255, 0.1);
+    border-radius: 4px;
+    padding: 6px;
+    text-align: center;
+    transition: all 0.2s;
+    cursor: default;
+}
+
+.mitre-tactic.active {
+    border-color: var(--accent-cyan);
+    background: rgba(0, 255, 255, 0.08);
+    box-shadow: 0 0 8px rgba(0, 255, 255, 0.15);
+}
+
+.mitre-tactic-name {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.mitre-tactic.active .mitre-tactic-name {
+    color: var(--accent-cyan);
+}
+
+.mitre-tactic-count {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.mitre-tactic.active .mitre-tactic-count {
+    color: var(--accent-cyan);
+    text-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
+}
+
+/* IP Table */
+.ip-table-container {
+    padding: 8px;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.ip-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+}
+
+.ip-table th {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    color: var(--accent-purple);
+    text-align: left;
+    padding: 4px 6px;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.15);
+    letter-spacing: 0.5px;
+}
+
+.ip-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    color: var(--text-secondary);
+}
+
+.ip-table td:first-child {
+    color: var(--accent-cyan);
+    font-family: 'Roboto Mono', monospace;
+}
+
+/* Model Performance Grid */
+.model-perf-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    padding: 12px;
+}
+
+.model-perf-card {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(0, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 10px;
+    text-align: center;
+}
+
+.perf-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.perf-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent-cyan);
+}
+
+.health-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.health-badge.green {
+    background: rgba(0, 255, 136, 0.2);
+    color: var(--accent-green);
+}
+
+.health-badge.yellow {
+    background: rgba(255, 190, 11, 0.2);
+    color: var(--accent-yellow);
+}
+
+.health-badge.red {
+    background: rgba(255, 0, 64, 0.2);
+    color: var(--accent-red);
+}
+
+/* ================================================================
+   CATEGORY 2 UPGRADES — Multi-page, Severity, Kill Chain, Settings
+   ================================================================ */
+
+/* Critical Alerts Banner */
+.critical-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 20px;
+    background: linear-gradient(90deg, rgba(255, 0, 64, 0.2), rgba(255, 0, 64, 0.05));
+    border: 1px solid rgba(255, 0, 64, 0.5);
+    border-radius: 6px;
+    animation: bannerPulse 2s infinite;
+}
+
+@keyframes bannerPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 10px rgba(255, 0, 64, 0.2);
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(255, 0, 64, 0.5);
+    }
+}
+
+.critical-banner-icon {
+    font-size: 16px;
+}
+
+.critical-banner-text {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-red);
+    letter-spacing: 1px;
+    flex: 1;
+}
+
+.critical-banner-dismiss {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+}
+
+/* Page Navigation */
+.page-nav {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--glass-bg);
+    border: var(--glass-border);
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+}
+
+.nav-btn {
+    flex: 1;
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.25s;
+    letter-spacing: 0.5px;
+}
+
+.nav-btn:hover {
+    background: rgba(0, 255, 255, 0.06);
+    color: var(--text-primary);
+}
+
+.nav-btn.active {
+    background: rgba(0, 255, 255, 0.1);
+    border-color: rgba(0, 255, 255, 0.4);
+    color: var(--accent-cyan);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.15);
+}
+
+.nav-icon {
+    margin-right: 4px;
+}
+
+/* Page Content */
+.page-content {
+    display: none;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.page-content.active {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Page grids */
+.analytics-page-grid,
+.incidents-page-grid,
+.models-page-grid,
+.settings-page-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding-bottom: 20px;
+}
+
+.analytics-full-width {
+    grid-column: 1 / -1;
+}
+
+.chart-tall {
+    height: 300px;
+}
+
+/* Alert Severity Styles */
+.alert-item.severity-critical {
+    border-left-color: var(--accent-red);
+}
+
+.alert-item.severity-high {
+    border-left-color: #ff6b35;
+}
+
+.alert-item.severity-medium {
+    border-left-color: var(--accent-yellow);
+}
+
+.alert-item.severity-low {
+    border-left-color: var(--accent-green);
+}
+
+.alert-severity-badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    margin-left: 6px;
+}
+
+.alert-severity-badge.critical {
+    background: rgba(255, 0, 64, 0.25);
+    color: var(--accent-red);
+}
+
+.alert-severity-badge.high {
+    background: rgba(255, 107, 53, 0.25);
+    color: #ff6b35;
+}
+
+.alert-severity-badge.medium {
+    background: rgba(255, 190, 11, 0.25);
+    color: var(--accent-yellow);
+}
+
+.alert-severity-badge.low {
+    background: rgba(0, 255, 136, 0.25);
+    color: var(--accent-green);
+}
+
+/* LLM Verdict Badge */
+.llm-badge {
+    font-size: 8px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    margin-left: 4px;
+    letter-spacing: 0.5px;
+}
+
+.llm-badge.true_positive {
+    background: rgba(0, 255, 136, 0.2);
+    color: var(--accent-green);
+    border: 1px solid rgba(0, 255, 136, 0.35);
+}
+
+.llm-badge.false_positive {
+    background: rgba(255, 190, 11, 0.2);
+    color: var(--accent-yellow);
+    border: 1px solid rgba(255, 190, 11, 0.35);
+}
+
+.llm-badge.uncertain {
+    background: rgba(157, 78, 221, 0.2);
+    color: var(--accent-purple);
+    border: 1px solid rgba(157, 78, 221, 0.35);
+}
+
+.alert-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.severity-filter {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    color: var(--text-primary);
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.severity-filter option {
+    background: var(--bg-secondary);
+}
+
+/* Kill Chain Pipeline */
+.kill-chain-container {
+    padding: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.kill-chain-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    border-left: 3px solid var(--accent-cyan);
+}
+
+.kill-chain-ip {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    color: var(--accent-cyan);
+    min-width: 120px;
+}
+
+.kill-chain-stages {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+}
+
+.kc-stage {
+    padding: 3px 6px;
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+}
+
+.kc-stage.hit {
+    background: rgba(0, 255, 255, 0.12);
+    border-color: rgba(0, 255, 255, 0.4);
+    color: var(--accent-cyan);
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.2);
+}
+
+.kc-arrow {
+    color: var(--text-secondary);
+    font-size: 10px;
+    opacity: 0.5;
+}
+
+.kill-chain-score {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    min-width: 50px;
+    text-align: right;
+}
+
+.kill-chain-score.high {
+    color: var(--accent-red);
+}
+
+.kill-chain-score.medium {
+    color: var(--accent-yellow);
+}
+
+.kill-chain-score.low {
+    color: var(--accent-green);
+}
+
+/* Settings Page */
+.settings-section {
+    padding: 10px;
+}
+
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.setting-name {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.setting-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.setting-value.toggle-on {
+    color: var(--accent-green);
+}
+
+.setting-value.toggle-off {
+    color: var(--accent-red);
+}
+
+/* Signature management */
+.sig-management {
+    padding: 8px;
+}
+
+.sig-stats-row {
+    display: flex;
+    gap: 12px;
+    padding: 8px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.sig-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.sig-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    font-size: 11px;
+}
+
+.sig-item-name {
+    color: var(--accent-cyan);
+    flex: 1;
+}
+
+.sig-item-severity {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 8px;
+}
+
+/* Incident Timeline */
+.incidents-timeline {
+    padding: 10px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.incident-timeline-card {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 6px;
+    border-left: 3px solid var(--accent-purple);
+}
+
+.incident-timeline-card.severity-critical {
+    border-left-color: var(--accent-red);
+}
+
+.incident-timeline-card.severity-high {
+    border-left-color: #ff6b35;
+}
+
+.incident-time {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    color: var(--text-secondary);
+    min-width: 70px;
+}
+
+.incident-detail {
+    flex: 1;
+}
+
+.incident-detail-title {
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--accent-cyan);
+    margin-bottom: 4px;
+}
+
+.incident-detail-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+/* Playbook library */
+.playbook-library {
+    padding: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.playbook-card {
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    border-left: 3px solid var(--accent-purple);
+}
+
+.playbook-card-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    color: var(--accent-cyan);
+    margin-bottom: 4px;
+}
+
+.playbook-card-steps {
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+
+/* Retrain/RL sections */
+.retrain-history,
+.rl-qtable {
+    padding: 8px;
+    max-height: 300px;
+    overflow-y: auto;
 }

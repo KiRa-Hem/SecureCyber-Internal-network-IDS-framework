@@ -74,7 +74,8 @@ def test_xgboost_detector_predicts(sample_packet):
     result = detector.predict(features)
 
     assert result is not None
-    assert result["prediction"] in (0, 1)
+    # prediction/is_attack are None — threshold decision is now in sensor pipeline
+    assert result["prediction"] is None
     assert 0.0 <= result["confidence"] <= 1.0
 
 
@@ -94,7 +95,7 @@ def test_dos_detector_detects():
         if i >= 5:
             assert alert is not None
             assert "DDoS" in alert["attacks"]
-            assert alert["confidence"] >= 60
+            assert alert["confidence"] >= 0.60
 
 
 def test_dos_detector_legitimate():

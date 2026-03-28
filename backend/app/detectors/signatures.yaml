@@ -1,3 +1,8 @@
+# SecureCyber IDS — Signature Database
+# 32 signatures covering web attacks, network threats, malware C2, and data exfiltration
+
+# ==================== Web Application Attacks ====================
+
 - id: sqli-basic
   name: SQL Injection
   description: Detects SQL keywords and boolean bypass operators in HTTP payloads.
@@ -11,6 +16,18 @@
     - "(?i)(['\"]\\s*or\\s*['\"])"
     - "(?i)--"
 
+- id: sqli-blind
+  name: SQL Injection
+  description: Detects blind SQL injection using time-based or boolean techniques.
+  severity: high
+  tags: [web, injection]
+  protocol: tcp
+  dst_ports: [80, 443, 8080]
+  payload_patterns:
+    - "(?i)\\b(SLEEP|BENCHMARK|WAITFOR\\s+DELAY)\\b"
+    - "(?i)\\bIF\\s*\\(.*,.*,.*\\)"
+    - "(?i)\\bCASE\\s+WHEN\\b"
+
 - id: xss-basic
   name: Cross-Site Scripting
   description: Detects script tags or javascript URIs commonly used in reflected XSS.
@@ -23,6 +40,18 @@
     - "(?i)on\\w+\\s*="
     - "(?i)javascript:"
 
+- id: xss-dom
+  name: Cross-Site Scripting
+  description: Detects DOM-based XSS payloads targeting document object manipulation.
+  severity: medium
+  tags: [web, injection]
+  protocol: tcp
+  dst_ports: [80, 443, 8080]
+  payload_patterns:
+    - "(?i)document\\.(cookie|location|write)"
+    - "(?i)window\\.(location|open)"
+    - "(?i)eval\\s*\\("
+
 - id: cmd-injection
   name: Command Injection
   description: Detects shell metacharacters combined with dangerous system utilities.
@@ -31,6 +60,16 @@
   payload_patterns:
     - "(?i)[;&|]+\\s*(?:cat|ls|bash|sh|powershell|whoami|wget|curl)\\b"
     - "(?i);\\s*rm\\s+-rf"
+
+- id: cmd-injection-advanced
+  name: Command Injection
+  description: Detects encoded command injection bypasses and reverse shell attempts.
+  severity: critical
+  tags: [system, execution]
+  payload_patterns:
+    - "(?i)\\b(nc|ncat|netcat)\\s+-[elp]"
+    - "(?i)\\bbash\\s+-i\\s*>\\s*&"
+    - "(?i)\\bpython\\s+-c\\s+['\"]import\\s+socket"
 
 - id: log4shell
   name: Log4Shell Exploit
@@ -50,6 +89,41 @@
     - "(?i)etc/passwd"
     - "(?i)windows[/\\\\]system32"
 
+- id: ssrf-basic
+  name: SSRF Attack
+  description: Detects Server-Side Request Forgery targeting internal services.
+  severity: high
+  tags: [web, ssrf]
+  protocol: tcp
+  dst_ports: [80, 443, 8080]
+  payload_patterns:
+    - "(?i)(127\\.0\\.0\\.1|localhost|0\\.0\\.0\\.0|169\\.254\\.169\\.254)"
+    - "(?i)http://internal"
+    - "(?i)file:///"
+
+- id: xxe-basic
+  name: XXE Injection
+  description: Detects XML External Entity injection attempts.
+  severity: high
+  tags: [web, injection]
+  protocol: tcp
+  dst_ports: [80, 443, 8080]
+  payload_patterns:
+    - "(?i)<!ENTITY\\s+\\w+\\s+SYSTEM"
+    - "(?i)<!DOCTYPE[^>]*\\[.*<!ENTITY"
+
+- id: deserialization
+  name: Deserialization Attack
+  description: Detects Java/Python deserialization payloads.
+  severity: critical
+  tags: [rce, deserialization]
+  payload_patterns:
+    - "(?i)java\\.lang\\.Runtime"
+    - "(?i)rO0ABX"
+    - "(?i)__import__\\s*\\(\\s*['\"]os['\"]\\s*\\)"
+
+# ==================== Brute Force & Credential Attacks ====================
+
 - id: ftp-bruteforce
   name: FTP Brute Force Signature
   description: Flags repeated FTP login attempts flagged by upstream telemetry.
@@ -59,3 +133,206 @@
     service: ftp
   metadata:
     category: bruteforce
+
+- id: ssh-bruteforce
+  name: SSH Brute Force
+  description: Detects rapid SSH authentication failures indicative of brute force.
+  severity: high
+  tags: [bruteforce, ssh]
+  protocol: tcp
+  dst_ports: [22]
+  payload_patterns:
+    - "(?i)(failed\\s+password|authentication\\s+failure)"
+    - "(?i)(invalid\\s+user|no\\s+such\\s+user)"
+
+- id: rdp-bruteforce
+  name: RDP Brute Force
+  description: Detects repeated RDP connection attempts from a single source.
+  severity: high
+  tags: [bruteforce, rdp]
+  protocol: tcp
+  dst_ports: [3389]
+  payload_patterns:
+    - "(?i)(negotiation\\s+request|connection\\s+attempt)"
+
+- id: credential-dump
+  name: Credential Dumping
+  description: Detects credential harvesting tools and memory dump patterns.
+  severity: critical
+  tags: [credential, persistence]
+  payload_patterns:
+    - "(?i)(mimikatz|lsass\\.exe|procdump|sekurlsa)"
+    - "(?i)(hashdump|cached_credentials)"
+
+# ==================== Ransomware & Malware C2 ====================
+
+- id: ransomware-c2
+  name: Ransomware C2 Callback
+  description: Detects ransomware command-and-control communication patterns.
+  severity: critical
+  tags: [ransomware, c2, malware]
+  payload_patterns:
+    - "(?i)(encrypt|ransom|bitcoin|btc|monero|xmr|decrypt_key)"
+    - "(?i)\\.onion[:/]"
+    - "(?i)(lockbit|conti|ryuk|revil|blackcat)"
+
+- id: c2-beacon
+  name: C2 Beacon Communication
+  description: Detects periodic beaconing patterns used by RATs and botnets.
+  severity: critical
+  tags: [c2, malware, apt]
+  payload_patterns:
+    - "(?i)(beacon|heartbeat|checkin|taskings)"
+    - "(?i)(cobalt[\\s_-]?strike|metasploit|meterpreter)"
+
+- id: crypto-mining
+  name: Cryptocurrency Mining
+  description: Detects Stratum protocol and mining pool communications.
+  severity: high
+  tags: [cryptomining, malware]
+  payload_patterns:
+    - "(?i)(stratum\\+tcp|mining\\.pool|xmrig|ethminer)"
+    - '(?i)"method"\s*:\s*"mining\.(subscribe|authorize|submit)"'
+    - "(?i)(coinminer|cryptonight)"
+
+- id: webshell-detection
+  name: Web Shell Upload
+  description: Detects common web shell upload and execution patterns.
+  severity: critical
+  tags: [webshell, persistence]
+  payload_patterns:
+    - "(?i)(eval\\s*\\(\\s*base64_decode|system\\s*\\(\\s*\\$_)"
+    - "(?i)(cmd\\.php|shell\\.php|c99|r57|b374k)"
+    - "(?i)(china\\s*chopper|godzilla\\s*webshell)"
+
+# ==================== Network Threats ====================
+
+- id: dns-tunneling
+  name: DNS Tunneling
+  description: Detects DNS queries with unusually long subdomains used for data exfiltration.
+  severity: high
+  tags: [dns, exfiltration, tunneling]
+  protocol: udp
+  dst_ports: [53]
+  payload_patterns:
+    - "(?i)\\.(?:[a-z0-9]{30,})\\.\\w+$"
+    - "(?i)(iodine|dnscat|dns2tcp)"
+
+- id: port-scan
+  name: Port Scanning
+  description: Detects Nmap and other port scanning tool signatures.
+  severity: medium
+  tags: [reconnaissance, scanning]
+  payload_patterns:
+    - "(?i)(nmap|masscan|zmap|unicornscan)"
+    - "(?i)SYN\\s+scan"
+
+- id: icmp-tunnel
+  name: ICMP Tunneling
+  description: Detects data encapsulation within ICMP echo requests.
+  severity: medium
+  tags: [tunneling, exfiltration]
+  protocol: icmp
+  payload_patterns:
+    - "(?i)(ptunnel|icmpsh|icmp_tunnel)"
+
+- id: arp-spoofing
+  name: ARP Spoofing
+  description: Detects ARP poisoning and spoofing activity.
+  severity: high
+  tags: [mitm, spoofing]
+  payload_patterns:
+    - "(?i)(arp.*spoof|arp.*poison|ettercap|arpwatch)"
+
+- id: smb-exploit
+  name: SMB Exploitation
+  description: Detects EternalBlue and other SMB vulnerability exploit attempts.
+  severity: critical
+  tags: [smb, exploit]
+  protocol: tcp
+  dst_ports: [445, 139]
+  payload_patterns:
+    - "(?i)(eternalblue|ms17.?010|smbghost)"
+    - "(?i)(psexec|smbexec|wmiexec)"
+
+# ==================== Data Exfiltration ====================
+
+- id: data-exfil-large
+  name: Data Exfiltration
+  description: Detects large data transfers to external destinations.
+  severity: high
+  tags: [exfiltration, data_loss]
+  payload_patterns:
+    - "(?i)(base64[\\s_-]?encoded|gzip[\\s_-]?compress)"
+    - "(?i)(upload|exfil|extract|steal)"
+
+- id: data-exfil-cloud
+  name: Cloud Data Exfiltration
+  description: Detects unauthorized uploads to cloud storage providers.
+  severity: high
+  tags: [exfiltration, cloud]
+  payload_patterns:
+    - "(?i)(s3\\.amazonaws\\.com|blob\\.core\\.windows\\.net|storage\\.googleapis\\.com)"
+    - "(?i)(dropbox\\.com/upload|drive\\.google\\.com/upload)"
+
+- id: email-exfil
+  name: Email Data Exfiltration
+  description: Detects sensitive data patterns in outbound email traffic.
+  severity: medium
+  tags: [exfiltration, email]
+  protocol: tcp
+  dst_ports: [25, 465, 587]
+  payload_patterns:
+    - "(?i)(ssn|social.security|credit.card|\\d{4}[- ]?\\d{4}[- ]?\\d{4}[- ]?\\d{4})"
+    - "(?i)(confidential|internal.only|classified)"
+
+# ==================== Lateral Movement ====================
+
+- id: lateral-psexec
+  name: Lateral Movement
+  description: Detects PsExec and WMI-based lateral movement within the network.
+  severity: critical
+  tags: [lateral_movement, persistence]
+  payload_patterns:
+    - "(?i)(psexec|wmic\\s+/node|invoke-command)"
+    - "(?i)(winrm|evil-winrm)"
+
+- id: lateral-pass-hash
+  name: Pass-the-Hash Attack
+  description: Detects pass-the-hash authentication relay attacks.
+  severity: critical
+  tags: [lateral_movement, credential]
+  payload_patterns:
+    - "(?i)(pass.the.hash|pth|overpass.the.hash)"
+    - "(?i)(ntlm.relay|ntlmrelayx)"
+
+# ==================== Reconnaissance ====================
+
+- id: directory-enum
+  name: Directory Enumeration
+  description: Detects automated directory brute-forcing and enumeration tools.
+  severity: low
+  tags: [reconnaissance, web]
+  protocol: tcp
+  dst_ports: [80, 443, 8080]
+  payload_patterns:
+    - "(?i)(gobuster|dirbuster|dirb|feroxbuster|ffuf)"
+    - "(?i)(admin|backup|config|debug|test)\\.(php|asp|jsp)"
+
+- id: vuln-scanner
+  name: Vulnerability Scanner
+  description: Detects common vulnerability scanner fingerprints.
+  severity: low
+  tags: [reconnaissance, scanning]
+  payload_patterns:
+    - "(?i)(nikto|nuclei|burpsuite|owasp.zap|acunetix|nessus|openvas)"
+
+- id: subdomain-enum
+  name: Subdomain Enumeration
+  description: Detects rapid subdomain brute-force queries against DNS.
+  severity: low
+  tags: [reconnaissance, dns]
+  protocol: udp
+  dst_ports: [53]
+  payload_patterns:
+    - "(?i)(subfinder|amass|sublist3r|knockpy)"

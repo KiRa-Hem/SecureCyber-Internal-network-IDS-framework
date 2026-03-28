@@ -178,7 +178,14 @@ def main() -> None:
     scaler = load_scaler(args.train_dir.expanduser().resolve() if args.train_dir else None)
 
     data_dir = discover_dataset_dir(args.data_dir)
-    df = load_days(data_dir, args.days, chunksize=200_000, fill_na_value=0.0, drop_na=False)
+    df = load_days(
+        data_dir,
+        args.days,
+        chunksize=200_000,
+        fill_na_value=0.0,
+        drop_na=False,
+        split_method=CONFIG.get("split_method", "by_day"),
+    )
     df, _ = select_features(df)
     if CONFIG.get("use_simplified", True):
         df = simplify_labels(df)

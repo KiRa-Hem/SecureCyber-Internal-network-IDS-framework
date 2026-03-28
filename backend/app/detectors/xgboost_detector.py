@@ -50,7 +50,16 @@ class XGBoostDetector:
 
         if threshold_value is not None:
             try:
-                self.threshold = float(threshold_value)
+                resolved_threshold = float(threshold_value)
+                min_threshold = float(getattr(settings, "XGBOOST_MIN_RUNTIME_THRESHOLD", 0.5))
+                if resolved_threshold < min_threshold:
+                    logger.warning(
+                        "Metadata threshold %.8f is below runtime minimum %.2f; using minimum.",
+                        resolved_threshold,
+                        min_threshold,
+                    )
+                    resolved_threshold = min_threshold
+                self.threshold = resolved_threshold
             except (TypeError, ValueError):
                 self.threshold = None
 
@@ -105,12 +114,12 @@ class XGBoostDetector:
         dmatrix = xgb.DMatrix(data, feature_names=self.feature_names)
 
         proba = float(self.model.predict(dmatrix)[0])
-        threshold = self.threshold if self.threshold is not None else settings.CONFIDENCE_THRESHOLD
-        is_attack = bool(proba >= threshold)
+        # Threshold decision is made by the sensor pipeline via the RL
+        # optimizer — this detector only returns the raw probability.
 
         return {
-            "prediction": int(is_attack),
-            "is_attack": is_attack,
+            "prediction": None,
+            "is_attack": None,
             "probabilities": {
                 "normal": float(1 - proba),
                 "attack": proba,

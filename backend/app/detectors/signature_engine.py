@@ -154,6 +154,8 @@ class SignatureEngine:
                 "evidence": evidence,
                 "metadata": signature.metadata,
             }
+            # Track match count for stats reporting
+            signature._match_count = getattr(signature, "_match_count", 0) + 1
             matches.append(match_payload)
         return matches
 
@@ -206,3 +208,60 @@ class SignatureEngine:
             evidence.append("metadata-match")
 
         return evidence if evidence else []
+
+    # ---------------------------------------------------------------- API
+
+    def list_signatures(self) -> List[Dict[str, Any]]:
+        """Return all signatures as dicts for the API."""
+        return [
+            {
+                "id": s.id,
+                "name": s.name,
+                "description": s.description,
+                "severity": s.severity,
+                "tags": s.tags,
+                "protocol": s.protocol,
+                "match_count": getattr(s, "_match_count", 0),
+            }
+            for s in self.signatures
+        ]
+
+    def add_signature(self, sig_data: Dict[str, Any]) -> Dict[str, str]:
+        """Dynamically add a new signature."""
+        sig_id = sig_data.get("id", "")
+        if any(s.id == sig_id for s in self.signatures):
+            return {"status": "error", "message": f"Signature '{sig_id}' already exists"}
+        try:
+            new_sig = SignatureDefinition(**sig_data)
+            new_sig._match_count = 0
+            self.signatures.append(new_sig)
+            return {"status": "ok", "message": f"Added signature '{sig_id}'"}
+        except Exception as exc:
+            return {"status": "error", "message": str(exc)}
+
+    def remove_signature(self, sig_id: str) -> Dict[str, str]:
+        """Remove a signature by ID."""
+        for i, s in enumerate(self.signatures):
+            if s.id == sig_id:
+                self.signatures.pop(i)
+                return {"status": "ok", "message": f"Removed signature '{sig_id}'"}
+        return {"status": "error", "message": f"Signature '{sig_id}' not found"}
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Return signature match statistics."""
+        severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+        total_matches = 0
+        top_signatures = []
+        for s in self.signatures:
+            count = getattr(s, "_match_count", 0)
+            severity_counts[s.severity] = severity_counts.get(s.severity, 0) + 1
+            total_matches += count
+            top_signatures.append({"id": s.id, "name": s.name, "matches": count})
+        top_signatures.sort(key=lambda x: x["matches"], reverse=True)
+        return {
+            "total_signatures": len(self.signatures),
+            "severity_breakdown": severity_counts,
+            "total_matches": total_matches,
+            "top_signatures": top_signatures[:10],
+        }
+

@@ -1,185 +1,286 @@
 # SecureCyber IDS/IPS
 
-AI-powered intrusion detection and prevention for internal networks. A FastAPI backend drives real-time detection, mitigation, and metrics, while a neon-inspired dashboard streams events over WebSockets.
+> **AI-powered Intrusion Detection & Prevention System for Internal Networks**
 
-## Highlights
-- Multi-layer detection: signature/rule-based, DDoS heuristics, XGBoost model in `backend/app/detectors/`
-- Real-time pipeline: sensor workers, correlator, mitigation engine, cache, and Prometheus metrics in `backend/app/`
-- Dashboard: futuristic UI in `frontend/` with live alerts, topology view, packet inspector, and quick attack simulations
-- Deployment ready: Docker Compose stack for backend, Redis, MongoDB, Prometheus, Grafana, and nginx fronting the static site
-- Observability: `/metrics` for Prometheus plus prebuilt Grafana dashboard and alert rules in `monitoring/`
-- Extensible: training scripts and pretrained artifacts in `models/` for retraining on CICIDS datasets
+A real-time, multi-layer IDS/IPS built with FastAPI, XGBoost, Isolation Forest, and a neon-themed dashboard. Features autonomous threshold tuning (RL), 7-stage kill chain detection, MITRE ATT&CK enrichment, 8 incident response playbooks, and optional LLM-powered alert triage via Ollama.
 
-## Repository Layout
-- `backend/` — FastAPI service, detectors, correlator, mitigation, config, and runtime entrypoint (`backend/main.py`)
-- `frontend/` — static dashboard served by FastAPI or nginx
-- `models/` — pretrained model artifacts plus `training_scripts/` for preprocessing and training
-- `monitoring/` — Prometheus config, Grafana dashboard JSON, alert rules, nginx config for the compose stack
-- `scripts/` — helper scripts (traffic simulation, attack simulation, environment setup, migrations)
-- `tests/` — pytest suite for API, detectors, packet capture, and WebSocket flows
-- `reference_ui/` — alternate/reference UI kept for design comparison
+---
 
-## Quickstart
-### Option A: Docker Compose
-1) Ensure Docker + Docker Compose are installed.  
-2) Create `backend/.env` (see Configuration) or export environment variables.  
-3) From the repo root:
+## 🖥️ Live Dashboard Screenshots
+
+### Main Dashboard — Real-Time Network Monitoring
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Analytics — Severity Distribution, MITRE ATT&CK Coverage, Attack Trends
+![Analytics](docs/screenshots/analytics.png)
+
+### Incidents — Timeline with Automated Response Actions
+![Incidents](docs/screenshots/incidents.png)
+
+### Models — RL Optimizer, Drift Detection, Shadow A/B Retraining
+![Models](docs/screenshots/models.png)
+
+### Settings — Feature Toggles, LLM Status, Signature Database
+![Settings](docs/screenshots/settings.png)
+
+---
+
+## 🎬 Demo Walkthrough
+
+![Dashboard Walkthrough](docs/screenshots/dashboard_walkthrough.webp)
+
+---
+
+## 🏗️ System Architecture
+
+![System Architecture](docs/screenshots/architecture.png)
+
+### Detection Pipeline
+
+![Detection Pipeline](docs/screenshots/detection_pipeline.png)
+
+---
+
+## ✨ Highlights
+
+| Feature | Details |
+|---------|---------|
+| **Multi-Layer Detection** | 32 YAML signatures + DDoS heuristics + XGBoost classifier + Isolation Forest anomaly |
+| **Autonomous Intelligence** | RL optimizer (Q-learning) auto-adjusts thresholds every 50 alerts |
+| **Kill Chain Detection** | 7-stage correlator: Recon → Weaponization → Exploitation → Credential Access → Lateral Movement → C2 → Exfiltration |
+| **Incident Response** | 8 attack-specific playbooks with automated & manual steps |
+| **MITRE ATT&CK Mapping** | 13 techniques across 14 tactics with dashboard heatmap |
+| **4-Tier Severity** | Critical 🔴 / High 🟠 / Medium 🟡 / Low 🟢 with color-coded alerts |
+| **5-Page Dashboard** | Dashboard, Analytics, Incidents, Models, Settings — with Chart.js |
+| **LLM Alert Triage** | Optional Ollama/Mistral integration for TP/FP classification |
+| **Deployment Ready** | Docker Compose with MongoDB, Redis, Prometheus, Grafana, Nginx |
+| **Observability** | `/metrics` endpoint for Prometheus + pre-built Grafana dashboards |
+
+---
+
+## 📁 Repository Layout
+
+```
+├── backend/              FastAPI service, detectors, correlator, mitigation
+│   ├── app/              Core application (main.py, sensors, features, etc.)
+│   │   └── detectors/    Signature engine, XGBoost, DDoS, Isolation Forest
+│   └── tests/            Backend test suite
+├── frontend/             Static dashboard (HTML/CSS/JS) served by FastAPI or Nginx
+├── models/               Pretrained XGBoost artifacts + training_scripts/
+├── monitoring/           Prometheus config, Grafana dashboard, alert rules
+├── scripts/              Setup, demo, simulation, and training helper scripts
+├── tests/                Root-level pytest suite (API, DB, WebSocket, integration)
+├── deploy/               Production Docker Compose + Nginx + risk profiles
+└── docker-compose.yml    Full-stack deployment (6 containers)
+```
+
+---
+
+## 🚀 Quickstart
+
+### Prerequisites
+
+- **Python 3.10+** — [python.org](https://python.org) (check "Add Python to PATH")
+- **Npcap** (Windows, for live capture) — [nmap.org/npcap](https://nmap.org/npcap/) (select "WinPcap API-compatible Mode")
+- **MongoDB** (optional) — system falls back to in-memory storage if unavailable
+
+### Option A: Local Development
+
 ```bash
+# 1. Clone
+git clone https://github.com/KiRa-Hem/SecureCyber-Internal-network-IDS-framework.git
+cd SecureCyber-Internal-network-IDS-framework
+
+# 2. Create & activate virtual environment
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1          # Windows PowerShell
+# source .venv/bin/activate           # Linux/macOS
+
+# 3. Install dependencies
+pip install --upgrade pip
+pip install -r backend/requirements.txt
+
+# 4. Configure environment
+copy backend/.env.example backend/.env
+# Edit backend/.env — set API_TOKEN, ADMIN_TOKEN, JWT_SECRET
+# For demo mode: set ENABLE_SIMULATION=true, ENABLE_PACKET_CAPTURE=false
+
+# 5. Set PYTHONPATH and start server
+$env:PYTHONPATH = "$PWD\backend"      # Windows
+# export PYTHONPATH="$(pwd)/backend"  # Linux/macOS
+cd backend
+python main.py
+```
+
+Dashboard opens at **http://localhost:8000** — API docs at **http://localhost:8000/docs**
+
+### Option B: Docker Compose
+
+```bash
+# 1. Clone
+git clone https://github.com/KiRa-Hem/SecureCyber-Internal-network-IDS-framework.git
+cd SecureCyber-Internal-network-IDS-framework
+
+# 2. Create root .env with secrets
+echo "API_TOKEN=$(python -c 'import secrets;print(secrets.token_hex(32))')" > .env
+echo "ADMIN_TOKEN=$(python -c 'import secrets;print(secrets.token_hex(32))')" >> .env
+echo "JWT_SECRET=$(python -c 'import secrets;print(secrets.token_hex(32))')" >> .env
+
+# 3. Build & start all 6 services
 docker compose up --build
 ```
-4) Visit the dashboard at `http://localhost` (nginx). Backend API and docs live at `http://localhost:8000`.  
-5) Prometheus: `http://localhost:9090`, Grafana: `http://localhost:3000` (default admin/admin unless changed).
 
-### Option B: Local development (no containers)
-```bash
-python -m venv .venv
-.\\.venv\\Scripts\\Activate  # PowerShell on Windows; use source .venv/bin/activate on Unix
-pip install -r backend/requirements.txt
-```
-Create `backend/.env` (below), then run:
-```bash
-cd backend
-python main.py  # runs uvicorn app.main:app on 0.0.0.0:8000
-```
-The dashboard and API are served from the same process at `http://localhost:8000`. Packet capture is disabled by default; enable it only on interfaces you control.
+| Service | URL |
+|---------|-----|
+| Dashboard (Nginx) | http://localhost |
+| Backend API | http://localhost:8000 |
+| API Docs | http://localhost:8000/docs |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3000 (admin/admin) |
 
-## Configuration
-All runtime settings are managed via environment variables loaded from `backend/.env` (see `backend/app/config.py`). Example:
+### Option C: One-Click Demo (Windows)
+
+```powershell
+.\scripts\setup_env.ps1     # First-time setup
+.\scripts\run_demo.ps1      # Starts server + simulator + opens browser
+```
+
+---
+
+## 🎬 Conference Demo
+
+Run the polished 5-stage kill chain attack scenario for live demonstrations:
+
+```bash
+python scripts/conference_demo.py          # Full speed (~2.5 min)
+python scripts/conference_demo.py --fast   # Half-speed pauses
+```
+
+**5 Stages:** Reconnaissance → Exploitation → Credential Access → Lateral Movement → Exfiltration
+
+Watch the dashboard in real-time to see kill chain detection, severity classification, and incident response.
+
+---
+
+## ⚙️ Configuration
+
+All settings are managed via `backend/.env`. Key variables:
+
 ```env
-# Core services
-MONGO_USER=changeme
-MONGO_PASSWORD=changeme
-MONGO_CLUSTER=cluster-id.mongodb.net
-MONGO_DB=Users
-# Optional: override computed URI
-# MONGODB_URI=mongodb://user:pass@host:27017/Users
+# Security (MUST change for production)
+API_TOKEN=replace-with-random-viewer-token
+ADMIN_TOKEN=replace-with-random-admin-token
+JWT_SECRET=replace-with-random-jwt-secret
 
-# Packet capture
-ENABLE_PACKET_CAPTURE=false
-NETWORK_INTERFACE=auto
-CAPTURE_FILTER=tcp or udp
+# Detection
+CONFIDENCE_THRESHOLD=0.99
+ENABLE_SIMULATION=true                    # Demo mode
+ENABLE_PACKET_CAPTURE=false               # Set true for live capture
 
-# Redis cache/metrics
-ENABLE_REDIS=false
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# Detection / mitigation
-CONFIDENCE_THRESHOLD=0.7
-ENABLE_REAL_MITIGATION=false
-MITIGATION_CONFIRMATION_TOKEN=
-BLOCKLIST_TTL_SECONDS=3600
-SENSOR_LOCATIONS=edge,internal
-
-# Logging
-LOG_LEVEL=INFO
-LOG_FILE=logs/ids.log
-```
-By default the system uses MongoDB for persistence; Redis is optional and can be disabled.
-
-## How Detection Works
-1) **Sensors** (`backend/app/sensors.py`) capture or simulate traffic per location, extract features, and push packets to detectors.  
-2) **Detectors** combine rule-based signatures, DoS heuristics, XGBoost model (`backend/app/detectors/`) to emit alerts with confidence scores.  
-3) **Correlator** (`backend/app/correlator.py`) merges related alerts across sensors into higher-fidelity incidents.  
-4) **Mitigation** (`backend/app/mitigation.py`) maintains blocklists and node isolation with TTLs; actions can be toggled off for dry runs.  
-5) **Cache + Metrics** (`backend/app/cache.py`, `backend/app/metrics.py`) keep rolling stats, expose `/metrics`, and drive the live dashboard via WebSockets.  
-6) **Frontend** (`frontend/`) receives `attack_detected` and `stats_update` messages over `/ws` to update the UI in real time.
-
-## API & Realtime Interfaces
-- `GET /` or `/dashboard` — serves the dashboard
-- `GET /health` — liveness and build info
-- `GET /api/alerts?limit=10&offset=0` — recent alerts from cache
-- `GET /api/stats` — summarized counts and top attackers
-- `GET /api/blocklist` — current blocklist
-- `POST /api/block-ip` — body `{ "ip": "...", "reason": "...", "ttl_seconds": 3600 }`
-- `POST /api/unblock-ip` — body `{ "ip": "..." }`
-- `POST /api/simulate-attack` — inject a synthetic alert for UI/testing
-- `GET /metrics` — Prometheus exposition format
-- `WS /ws` — broadcasts `{type: "attack_detected" | "stats_update", data: ...}`
-
-Examples:
-```bash
-curl -X POST http://localhost:8000/api/block-ip ^
-  -H "Content-Type: application/json" ^
-  -d "{\"ip\":\"203.0.113.5\",\"reason\":\"manual quarantine\",\"ttl_seconds\":1800}"
-
-curl -X POST http://localhost:8000/api/simulate-attack ^
-  -H "Content-Type: application/json" ^
-  -d "{\"attack_type\":\"SQL Injection\",\"source_ip\":\"198.51.100.10\",\"target_ip\":\"10.0.0.5\",\"payload\":\"' OR '1'='1\"}"
+# Autonomous Intelligence
+RL_ENABLED=true                           # RL optimizer
+IR_ENABLED=true                           # Incident response
+AUTO_RETRAIN_ENABLED=true                 # Model auto-retrain
+RISK_SCORING_ENABLED=true                 # Dual-pipeline risk fusion
 ```
 
-## Frontend
-The dashboard lives in `frontend/` and is served by FastAPI static routing or nginx in the compose stack. It includes:
-- Live status tiles, alert list, packet inspector, and node inspector
-- 3D-inspired network topology view with animated packet trails
-- Quick simulation launcher to trigger sample attacks against the WebSocket feed
+See [`backend/.env.example`](backend/.env.example) for all available options.
 
-Customize styles in `frontend/style.css` and behaviors in `frontend/script.js`; the template uses Jinja2 when served via FastAPI.
+---
 
-## Models & Training
-Pretrained XGBoost artifacts ship in `models/`. To retrain:
-1) Prepare the CICIDS dataset under `models/training_scripts/data/raw/`.  
-2) Run preprocessing:
+## 🔍 How Detection Works
+
+1. **Sensors** capture or simulate traffic and extract features
+2. **4 Detectors** run in parallel: 32 YAML signatures, DoS heuristics, XGBoost, Isolation Forest
+3. **Risk Fusion** computes weighted composite score (XGBoost 55% + Anomaly 30% + Drift 15%)
+4. **RL Optimizer** auto-adjusts XGBoost threshold via Q-learning every 50 alerts
+5. **MITRE ATT&CK** enriches alerts with technique IDs (T1190, T1498, etc.)
+6. **Kill Chain Correlator** tracks 7-stage attack progressions per source IP
+7. **Incident Response** maps alerts to 8 playbooks with automated response steps
+8. **LLM Triage** (optional) classifies alerts as TP/FP and corrects RL optimizer
+9. **Model Updater** monitors for drift and performs shadow A/B retraining
+10. **Dashboard** streams events in real-time over WebSocket
+
+---
+
+## 🔌 API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | System health check |
+| `GET` | `/api/stats` | Network statistics |
+| `GET` | `/api/alerts` | Recent alerts |
+| `GET` | `/api/analytics` | Aggregated analytics |
+| `GET` | `/api/incidents` | Active incidents |
+| `GET` | `/api/kill-chains` | Kill chain tracking |
+| `GET` | `/api/mitre-coverage` | MITRE ATT&CK coverage |
+| `GET` | `/api/signatures` | All 32 signatures + match stats |
+| `GET` | `/api/rl-status` | RL optimizer status |
+| `GET` | `/api/model-status` | Model health & drift info |
+| `POST` | `/api/simulate-attack` | Inject test alert (admin) |
+| `POST` | `/api/block-ip` | Block an IP (admin) |
+| `GET` | `/api/blocklist` | Current blocklist |
+| `GET` | `/metrics` | Prometheus metrics |
+| `WS` | `/ws` | Real-time WebSocket |
+
+All endpoints require `X-Api-Key` header or JWT token. See [API Docs](http://localhost:8000/docs) when running.
+
+---
+
+## 🧪 Testing
+
 ```bash
-python models/training_scripts/preprocess_cic.py --input-file models/training_scripts/data/raw/cicids/cic.csv --output-dir models/training_scripts/data/cic --time-split --time-col timestamp
-```
-3) Train and emit new artifacts:
-```bash
-python models/training_scripts/train_models.py --data-dir models/training_scripts/data/cic --model-dir models/cic
-```
-Copy the resulting `attack_classifier_xgb.json` into `models/cic` so the detector loads it at runtime.
-
-## Monitoring
-- Prometheus scrape config: `monitoring/prometheus.yml`
-- Grafana dashboard JSON: `monitoring/grafana_dashboard.json`
-- Alert rules: `monitoring/alert_rules.yml`
-Metrics come from `GET /metrics`; the compose stack wires Prometheus and Grafana automatically.
-
-## Production Readiness (Required)
-### Cross-dataset generalization
-Use the cross-dataset runner to train on one dataset and evaluate on another:
-```bash
-python models/training_scripts/cross_dataset_eval.py ^
-  --train-dir "models/training_scripts/data/cicids2018_pipeline/split" ^
-  --test-dir "models/training_scripts/data/cicids2018_pipeline/split" ^
-  --model-dir "models/cross_eval"
-```
-Replace `--test-dir` with a completely unseen dataset split (e.g., CICIDS 2017 or UNSW‑NB15) and compare recall.
-
-### RBAC + audit logging
-- `API_TOKEN` gives viewer access (read-only APIs, metrics, WS).
-- `ADMIN_TOKEN` required for block/unblock/isolate endpoints.
-- Audit logs go to `logs/audit.log` and Mongo `audit_logs` when available.
-### JWT auth (role claims)
-Set `JWT_SECRET` and optionally `JWT_ISSUER`/`JWT_AUDIENCE`, then request a token:
-```bash
-curl -X POST http://localhost:8000/api/token ^
-  -H "Authorization: Bearer <ADMIN_TOKEN>" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"subject\":\"reviewer\",\"role\":\"viewer\",\"ttl_seconds\":3600}"
-```
-Use the returned JWT as `Authorization: Bearer <token>` for viewer/admin access.
-
-### Production deployment guide (minimum bar)
-1) Terminate TLS at a reverse proxy (NGINX/Traefik); do not expose uvicorn directly.
-2) Store tokens in a secrets manager; avoid committing `.env` to VCS.
-3) Enforce ingress rate limiting for `/ws`, `/api/login`, `/api/simulate-attack`.
-4) Run multiple backend instances behind a load balancer; centralize cache in Redis.
-5) Use managed MongoDB with backups and TTL indexes for blocklists/audits.
-6) Prometheus uses `monitoring/ids_bearer_token` to scrape `/metrics`.
-7) Schedule periodic retraining + drift evaluation; update `model_card.md`.
-
-### Drift retraining workflow
-Run the drift retraining job (checks for recent drift alerts; use `--force` to retrain anyway):
-```bash
-python models/training_scripts/retrain_on_drift.py --mongo-uri "mongodb://localhost:27017/ids" --lookback-hours 24
-```
-
-## Testing
-Run the suite from the repo root (tests add `backend/` to `PYTHONPATH`):
-```bash
+# Run full test suite
 pytest
+
+# Run specific tests
+pytest tests/test_integration.py     # Full pipeline validation
+pytest tests/test_api.py             # API endpoints
+pytest tests/test_detectors.py       # All 4 detectors
+pytest tests/test_risk_fusion.py     # Risk scoring
+pytest tests/test_websocket.py       # WebSocket flows
 ```
 
-## License
-MIT License. See `LICENSE` for details.
+---
+
+## 🤖 Models & Training
+
+Pre-trained XGBoost model ships in `models/cic/`. To retrain:
+
+```bash
+# Preprocess dataset
+python models/training_scripts/preprocess_cic.py \
+  --input-file data/raw/cic.csv --output-dir data/cic
+
+# Train models
+python models/training_scripts/train_models.py \
+  --data-dir data/cic --model-dir models/cic
+```
+
+---
+
+## 📊 Monitoring
+
+- **Prometheus** scrape config: `monitoring/prometheus.yml`
+- **Grafana** dashboard: `monitoring/grafana_dashboard.json`
+- **Alert rules**: `monitoring/alert_rules.yml`
+- **Application logs**: `backend/logs/ids.log`, `backend/logs/audit.log`
+
+---
+
+## 🔒 Production Readiness
+
+1. Terminate TLS at a reverse proxy; never expose uvicorn directly
+2. Store tokens in a secrets manager; don't commit `.env` to VCS
+3. Enforce rate limiting (`deploy/nginx.conf`: API 30 req/s, WS 10 req/s)
+4. Run multiple backend replicas behind a load balancer
+5. Use managed MongoDB with backups and TTL indexes
+6. Schedule periodic retraining + drift evaluation
+
+See [`deploy/README.md`](deploy/README.md) for production deployment guide.
+
+---
+
+## 📄 License
+
+MIT License. See [LICENSE](LICENSE) for details.

@@ -1,0 +1,56 @@
+{
+  "model_name": "SecureCyber IDS XGBoost",
+  "version": "cicids2018_packet",
+  "task": "Binary intrusion detection (attack vs normal)",
+  "training_data": "CICIDS 2018 (subset of days), packet-level feature mapping",
+  "features": [
+    "Dst Port",
+    "Protocol",
+    "TotLen Fwd Pkts",
+    "Fwd Pkt Len Max",
+    "Fwd Pkt Len Mean",
+    "Flow Byts/s",
+    "PSH Flag Cnt",
+    "URG Flag Cnt",
+    "FIN Flag Cnt",
+    "SYN Flag Cnt",
+    "RST Flag Cnt",
+    "ACK Flag Cnt",
+    "Fwd Header Len",
+    "Fwd Pkt Len Min",
+    "Fwd Pkt Len Std",
+    "Down/Up Ratio",
+    "Fwd Pkts/s"
+  ],
+  "metrics_in_dataset": {
+    "accuracy": 0.9936877637130802,
+    "attack_precision": 0.9968891057704038,
+    "attack_recall": 0.99551269035533,
+    "attack_f1": 0.996200422626788
+  },
+  "strict_unseen_day_holdout": {
+    "days": [
+      "02-14-2018.csv",
+      "02-28-2018.csv",
+      "03-01-2018.csv",
+      "03-02-2018.csv"
+    ],
+    "attack_precision": 0.38918286642342664,
+    "attack_recall": 0.5217049382805395,
+    "attack_f1": 0.4458038020901241,
+    "roc_auc": 0.6380470032724639,
+    "pr_auc": 0.5253198488582922
+  },
+  "cross_dataset_eval": {
+    "test_dataset": "CIC (cic.csv)",
+    "attack_precision": 0.0,
+    "attack_recall": 0.0,
+    "attack_f1": 0.0
+  },
+  "caveats": [
+    "Cross-dataset generalization is poor; do not claim robust performance on CIC or other datasets.",
+    "Metrics reflect packet-level feature mapping; if runtime features drift, performance will degrade.",
+    "Requires calibration and dataset alignment for production claims beyond CICIDS2018."
+  ],
+  "intended_use": "Internal network IDS demo and controlled environments with matching feature distributions."
+}

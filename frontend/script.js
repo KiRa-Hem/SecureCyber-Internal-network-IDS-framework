@@ -155,7 +155,8 @@ const state = {
     webSocket: null,
     paused: false,
     speedMultiplier: 1,
-    simulationEnabled: false
+    simulationEnabled: false,
+    llmVerdicts: {}
 };
 
 function updateClock() {
@@ -237,6 +238,16 @@ function buildDetail(label, value, extraClass = '') {
     return row;
 }
 
+const CRITICAL_ATTACK_TYPES = ['Kill Chain Detected', 'Ransomware C2 Callback', 'Log4Shell Exploit', 'C2 Beacon Communication', 'Credential Dumping'];
+const HIGH_ATTACK_TYPES = ['SQL Injection', 'Command Injection', 'SMB Exploitation', 'SSH Brute Force', 'Lateral Movement', 'Data Exfiltration'];
+
+function classifySeverity(attackType, confidence) {
+    if (CRITICAL_ATTACK_TYPES.some(t => attackType.includes(t)) || confidence >= 95) return 'critical';
+    if (HIGH_ATTACK_TYPES.some(t => attackType.includes(t)) || confidence >= 85) return 'high';
+    if (confidence >= 70) return 'medium';
+    return 'low';
+}
+
 function normalizeAlert(alert) {
     const attackType = (alert.attack_types || alert.attacks || [alert.attack || alert.type || 'Threat'])[0] || 'Threat';
     const timestamp = alert.timestamp ? new Date(alert.timestamp * 1000) : new Date();
@@ -250,6 +261,7 @@ function normalizeAlert(alert) {
     const flags = alert.flags?.join(', ') || alert.packet_flags || '[ ]';
     const payloadSnippet = alert.payload_snippet || alert.payload || '';
     const targetData = targetNode?.data?.join(', ') || (alert.targeted_data || []).join(', ');
+    const severity = alert.severity || classifySeverity(attackType, confidence);
     return {
         attackType,
         timestamp,
@@ -261,6 +273,7 @@ function normalizeAlert(alert) {
         action,
         flags,
         payloadSnippet,
+        severity,
         cve: alert.cve,
         description: alert.description
     };
@@ -270,21 +283,43 @@ function renderAlerts() {
     if (!dom.alertsContainer) return;
     dom.alertsContainer.innerHTML = '';
 
-    if (!state.alerts.length) {
+    const filter = document.getElementById('severity-filter')?.value || 'all';
+    let filtered = state.alerts;
+    if (filter !== 'all') {
+        filtered = state.alerts.filter(a => {
+            const v = normalizeAlert(a);
+            return v.severity === filter;
+        });
+    }
+
+    if (!filtered.length) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
-        empty.textContent = 'No alerts detected yet.';
+        empty.textContent = state.alerts.length ? `No ${filter} alerts.` : 'No alerts detected yet.';
         dom.alertsContainer.appendChild(empty);
-        if (dom.alertCount) dom.alertCount.textContent = '0';
+        if (dom.alertCount) dom.alertCount.textContent = state.alerts.length.toString();
         return;
     }
 
     if (dom.alertCount) dom.alertCount.textContent = state.alerts.length.toString();
 
-    state.alerts.slice(0, 10).forEach(alert => {
+    // Update critical banner
+    const critCount = state.alerts.filter(a => normalizeAlert(a).severity === 'critical').length;
+    const banner = document.getElementById('critical-banner');
+    const bannerText = document.getElementById('critical-banner-text');
+    if (banner && bannerText) {
+        if (critCount > 0) {
+            banner.style.display = 'flex';
+            bannerText.textContent = `${critCount} CRITICAL ALERT${critCount > 1 ? 'S' : ''} ACTIVE`;
+        } else {
+            banner.style.display = 'none';
+        }
+    }
+
+    filtered.slice(0, 15).forEach(alert => {
         const view = normalizeAlert(alert);
         const item = document.createElement('div');
-        item.className = 'alert-item';
+        item.className = `alert-item severity-${view.severity}`;
         if (state.selectedAlert?.id === alert.id) {
             item.classList.add('highlighted');
         }
@@ -293,7 +328,11 @@ function renderAlerts() {
         header.className = 'alert-header';
         const type = document.createElement('span');
         type.className = 'alert-type';
-        type.textContent = view.attackType;
+        const llmVerdict = alert.llm_verdict || state.llmVerdicts?.[alert.id];
+        const llmBadgeHtml = llmVerdict
+            ? `<span class="llm-badge ${llmVerdict.verdict}" title="LLM: ${llmVerdict.reasoning || llmVerdict.verdict}">${llmVerdict.verdict === 'true_positive' ? 'TP' : llmVerdict.verdict === 'false_positive' ? 'FP' : '??'}</span>`
+            : '';
+        type.innerHTML = `${view.attackType}<span class="alert-severity-badge ${view.severity}">${view.severity.toUpperCase()}</span>${llmBadgeHtml}`;
         const time = document.createElement('span');
         time.className = 'alert-time';
         time.textContent = formatTime(view.timestamp);
@@ -619,6 +658,17 @@ function connectWebSocket() {
                         hosts: payload.data.active_hosts,
                         attackRate: payload.data.attack_rate ?? payload.data.threats_detected ?? 0
                     });
+                } else if (payload.type === 'llm_update') {
+                    // Phase 5: patch LLM verdict onto existing alerts
+                    const alertId = payload.alert_id;
+                    const verdict = payload.llm_verdict;
+                    if (alertId && verdict) {
+                        state.llmVerdicts[alertId] = verdict;
+                        const existing = state.alerts.find(a => a.id === alertId);
+                        if (existing) existing.llm_verdict = verdict;
+                        renderAlerts();
+                        console.log(`[LLM] verdict for ${alertId}: ${verdict.verdict}`);
+                    }
                 }
             } catch (error) {
                 console.warn('[WS] invalid payload', error);
@@ -1025,9 +1075,593 @@ function bootstrapDashboard() {
     renderAlerts();
 }
 
+/* ================================================================
+   CATEGORY 1 UPGRADES — Analytics, Incidents, MITRE, Model Health
+   ================================================================ */
+
+let attackDistChart = null;
+let attackTimelineChart = null;
+
+const CHART_COLORS = [
+    '#ff0040', '#00ffff', '#9d4edd', '#00ff88', '#ffbe0b',
+    '#ff006e', '#3a86ff', '#fb5607', '#8338ec', '#06d6a0'
+];
+
+function initCharts() {
+    if (typeof Chart === 'undefined') return;
+
+    Chart.defaults.color = '#a0a0b8';
+    Chart.defaults.font.family = "'Roboto Mono', monospace";
+    Chart.defaults.font.size = 10;
+
+    // Attack Distribution Donut
+    const distCtx = document.getElementById('attack-distribution-chart');
+    if (distCtx) {
+        attackDistChart = new Chart(distCtx, {
+            type: 'doughnut',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    backgroundColor: CHART_COLORS,
+                    borderColor: 'rgba(10, 10, 18, 0.8)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 10,
+                            padding: 8,
+                            font: { size: 9 }
+                        }
+                    }
+                },
+                cutout: '60%'
+            }
+        });
+    }
+
+    // Attack Timeline Bar Chart
+    const timeCtx = document.getElementById('attack-timeline-chart');
+    if (timeCtx) {
+        attackTimelineChart = new Chart(timeCtx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Attacks',
+                    data: [],
+                    backgroundColor: 'rgba(0, 255, 255, 0.4)',
+                    borderColor: '#00ffff',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(0, 255, 255, 0.05)' },
+                        ticks: { maxRotation: 45, font: { size: 8 } }
+                    },
+                    y: {
+                        grid: { color: 'rgba(0, 255, 255, 0.05)' },
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 }
+                    }
+                }
+            }
+        });
+    }
+}
+
+function updateAttackDistChart(distribution) {
+    if (!attackDistChart) return;
+    const labels = Object.keys(distribution);
+    const data = Object.values(distribution);
+    attackDistChart.data.labels = labels;
+    attackDistChart.data.datasets[0].data = data;
+    attackDistChart.update('none');
+}
+
+function updateTimelineChart(hourly) {
+    if (!attackTimelineChart) return;
+    const entries = Object.entries(hourly).sort();
+    const labels = entries.map(([k]) => k.split(' ')[1] || k);
+    const data = entries.map(([, v]) => v);
+    attackTimelineChart.data.labels = labels;
+    attackTimelineChart.data.datasets[0].data = data;
+    attackTimelineChart.update('none');
+}
+
+function renderMitreGrid(coverage, hits) {
+    const grid = document.getElementById('mitre-grid');
+    if (!grid || !coverage) return;
+
+    const tactics = coverage.tactics || [];
+    const techniques = coverage.techniques || {};
+    const hitMap = hits || {};
+
+    // Build tactic→technique hit count map
+    const tacticHits = {};
+    Object.values(techniques).forEach(t => {
+        const tid = t.tactic_id;
+        const techId = t.technique_id;
+        tacticHits[tid] = (tacticHits[tid] || 0) + (hitMap[techId] || 0);
+    });
+
+    grid.innerHTML = '';
+    tactics.forEach(tactic => {
+        const count = tacticHits[tactic.id] || 0;
+        const div = document.createElement('div');
+        div.className = `mitre-tactic${count > 0 ? ' active' : ''}`;
+        div.title = `${tactic.id}: ${tactic.name}`;
+        div.innerHTML = `
+            <div class="mitre-tactic-name">${tactic.name}</div>
+            <div class="mitre-tactic-count">${count}</div>
+        `;
+        grid.appendChild(div);
+    });
+}
+
+function renderTopIPs(ipList) {
+    const tbody = document.getElementById('ip-table-body');
+    if (!tbody) return;
+
+    if (!ipList || !ipList.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No data yet</td></tr>';
+        return;
+    }
+
+    const total = ipList.reduce((sum, item) => sum + item.count, 0);
+    tbody.innerHTML = ipList.slice(0, 10).map(item => {
+        const pct = total > 0 ? ((item.count / total) * 100).toFixed(1) : '0.0';
+        return `<tr><td>${item.ip}</td><td>${item.count}</td><td>${pct}%</td></tr>`;
+    }).join('');
+}
+
+function renderIncidents(incidents) {
+    const list = document.getElementById('incident-list');
+    const badge = document.getElementById('incident-badge');
+    const headerCount = document.getElementById('incident-count-header');
+    if (!list) return;
+
+    if (badge) badge.textContent = incidents.length.toString();
+    if (headerCount) headerCount.textContent = incidents.length.toString();
+
+    if (!incidents.length) {
+        list.innerHTML = '<div class="empty-state">No active incidents</div>';
+        return;
+    }
+
+    list.innerHTML = incidents.slice(0, 8).map(inc => `
+        <div class="incident-card severity-${inc.severity}">
+            <div class="incident-card-header">
+                <span class="incident-id">${inc.id}</span>
+                <span class="severity-tag ${inc.severity}">${inc.severity.toUpperCase()}</span>
+            </div>
+            <div class="incident-narrative">${inc.narrative || inc.attack_type}</div>
+            <div class="playbook-steps">
+                ${(inc.playbook_steps || []).slice(0, 4).map(s =>
+        `<span class="playbook-step${s.automated ? ' automated' : ''}">${s.action}</span>`
+    ).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateModelPerf(modelStatus, rlStatus) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    if (modelStatus) {
+        set('perf-model-version', `v${modelStatus.model_version || '1.0.0'}`);
+        set('perf-drift-count', modelStatus.drift_events_1h ?? 0);
+        set('perf-shadow-status', modelStatus.shadow_active ? `Active (${modelStatus.shadow_progress})` : 'Inactive');
+
+        const healthEl = document.getElementById('perf-model-health');
+        if (healthEl) {
+            const h = modelStatus.health || 'green';
+            healthEl.innerHTML = `<span class="health-badge ${h}">${h.toUpperCase()}</span>`;
+        }
+
+        // Header indicator
+        const dot = document.getElementById('model-health-dot');
+        const text = document.getElementById('model-health-text');
+        if (dot) { dot.className = `indicator-dot ${modelStatus.health || 'green'}`; }
+        if (text) { text.textContent = `v${modelStatus.model_version || '1.0.0'}`; }
+    }
+
+    if (rlStatus) {
+        set('perf-rl-threshold', rlStatus.current_threshold?.toFixed(4) ?? '—');
+        set('perf-rl-evals', rlStatus.total_evaluations ?? 0);
+        set('perf-rl-action', rlStatus.last_action || '—');
+        set('perf-rl-adjustments', rlStatus.total_adjustments ?? 0);
+
+        // Header indicator
+        const rlDot = document.getElementById('rl-status-dot');
+        const rlText = document.getElementById('rl-status-text');
+        if (rlDot) { rlDot.className = `indicator-dot ${rlStatus.enabled ? 'green' : 'yellow'}`; }
+        if (rlText) { rlText.textContent = rlStatus.enabled ? 'Active' : 'Disabled'; }
+    }
+}
+
+function fetchAnalytics() {
+    attemptFetch(`${baseApiUrl()}/api/analytics`).then(data => {
+        if (data.attack_type_distribution) updateAttackDistChart(data.attack_type_distribution);
+        if (data.hourly_attack_counts) updateTimelineChart(data.hourly_attack_counts);
+        if (data.mitre_coverage) renderMitreGrid(data.mitre_coverage, data.mitre_technique_hits);
+        if (data.top_source_ips) renderTopIPs(data.top_source_ips);
+        updateModelPerf(data.model_status, data.rl_status);
+    }).catch(err => console.warn('[Analytics] fetch failed:', err));
+
+    attemptFetch(`${baseApiUrl()}/api/incidents`).then(data => {
+        if (data.incidents) renderIncidents(data.incidents);
+    }).catch(err => console.warn('[Incidents] fetch failed:', err));
+}
+
+function startAnalyticsPolling() {
+    initCharts();
+    fetchAnalytics();
+    setInterval(fetchAnalytics, 10000); // refresh every 10s
+}
+
+/* ================================================================
+   CATEGORY 2 UPGRADES — Pages, Kill Chain, Signatures, Severity
+   ================================================================ */
+
+const KC_STAGE_NAMES = [
+    'reconnaissance', 'weaponization', 'exploitation',
+    'credential_access', 'lateral_movement', 'command_and_control', 'exfiltration'
+];
+
+let severityChart = null;
+let trendsChart = null;
+let sigEffChart = null;
+
+function initCat2Charts() {
+    if (typeof Chart === 'undefined') return;
+
+    const sevCtx = document.getElementById('severity-chart');
+    if (sevCtx) {
+        severityChart = new Chart(sevCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Critical', 'High', 'Medium', 'Low'],
+                datasets: [{ data: [0, 0, 0, 0], backgroundColor: ['#ff0040', '#ff6b35', '#ffbe0b', '#00ff88'], borderColor: 'rgba(10,10,18,0.8)', borderWidth: 2 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '55%', plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 9 } } } } }
+        });
+    }
+
+    const trendCtx = document.getElementById('trends-chart');
+    if (trendCtx) {
+        trendsChart = new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Attack Count', data: [], borderColor: '#00ffff', backgroundColor: 'rgba(0,255,255,0.1)',
+                    fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: 'rgba(0,255,255,0.05)' }, ticks: { font: { size: 8 }, maxRotation: 45 } },
+                    y: { grid: { color: 'rgba(0,255,255,0.05)' }, beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    const sigCtx = document.getElementById('sig-effectiveness-chart');
+    if (sigCtx) {
+        sigEffChart = new Chart(sigCtx, {
+            type: 'bar',
+            data: { labels: [], datasets: [{ label: 'Matches', data: [], backgroundColor: 'rgba(157,78,221,0.5)', borderColor: '#9d4edd', borderWidth: 1 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: 'rgba(0,255,255,0.05)' }, beginAtZero: true },
+                    y: { grid: { color: 'rgba(0,255,255,0.05)' }, ticks: { font: { size: 9 } } }
+                }
+            }
+        });
+    }
+}
+
+// Page Navigation
+function setupPageNavigation() {
+    const navBtns = document.querySelectorAll('.nav-btn');
+    const pages = document.querySelectorAll('.page-content');
+    navBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.dataset.page;
+            navBtns.forEach(b => b.classList.remove('active'));
+            pages.forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            const page = document.getElementById(`page-${target}`);
+            if (page) page.classList.add('active');
+            if (target === 'analytics') refreshAnalyticsPage();
+            if (target === 'incidents') refreshIncidentsPage();
+            if (target === 'models') refreshModelsPage();
+            if (target === 'settings') refreshSettingsPage();
+        });
+    });
+
+    // Severity filter
+    const sevFilter = document.getElementById('severity-filter');
+    if (sevFilter) sevFilter.addEventListener('change', () => renderAlerts());
+
+    // Critical banner dismiss
+    const dismiss = document.getElementById('critical-banner-dismiss');
+    if (dismiss) dismiss.addEventListener('click', () => {
+        const banner = document.getElementById('critical-banner');
+        if (banner) banner.style.display = 'none';
+    });
+}
+
+// Kill Chain Visualization
+function renderKillChains(chains) {
+    const container = document.getElementById('kill-chain-container');
+    if (!container) return;
+    if (!chains || !chains.length) {
+        container.innerHTML = '<div class="empty-state">No kill chains detected</div>';
+        return;
+    }
+    container.innerHTML = chains.map(chain => {
+        const pct = Math.round(chain.completeness * 100);
+        const scoreClass = pct >= 60 ? 'high' : pct >= 30 ? 'medium' : 'low';
+        const stagesHtml = KC_STAGE_NAMES.map((stage, i) => {
+            const isHit = chain.stages && chain.stages[stage];
+            const label = stage.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            return `${i > 0 ? '<span class="kc-arrow">→</span>' : ''}<span class="kc-stage${isHit ? ' hit' : ''}" title="${label}">${label}</span>`;
+        }).join('');
+        return `<div class="kill-chain-row">
+            <span class="kill-chain-ip">${chain.source_ip}</span>
+            <div class="kill-chain-stages">${stagesHtml}</div>
+            <span class="kill-chain-score ${scoreClass}">${pct}%</span>
+        </div>`;
+    }).join('');
+}
+
+// Signature Page
+function renderSignatureList(sigs) {
+    const list = document.getElementById('sig-list');
+    const sigCount = document.getElementById('sig-count-text');
+    if (sigCount) sigCount.textContent = sigs?.length ?? 0;
+    if (!list) return;
+    if (!sigs || !sigs.length) {
+        list.innerHTML = '<div class="empty-state">No signatures loaded</div>';
+        return;
+    }
+    list.innerHTML = sigs.map(s => {
+        const sevColors = { critical: 'background:rgba(255,0,64,0.25);color:#ff0040', high: 'background:rgba(255,107,53,0.25);color:#ff6b35', medium: 'background:rgba(255,190,11,0.25);color:#ffbe0b', low: 'background:rgba(0,255,136,0.25);color:#00ff88' };
+        return `<div class="sig-item">
+            <span class="sig-item-name">${s.name}</span>
+            <span class="sig-item-severity" style="${sevColors[s.severity] || ''}">${s.severity}</span>
+            <span style="color:var(--text-secondary);min-width:40px;text-align:right">${s.match_count || 0}</span>
+        </div>`;
+    }).join('');
+}
+
+function renderSignatureStats(stats) {
+    if (!stats) return;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('sig-total', stats.total_signatures || 0);
+    set('sig-crit', stats.severity_breakdown?.critical || 0);
+    set('sig-high', stats.severity_breakdown?.high || 0);
+    set('sig-med', stats.severity_breakdown?.medium || 0);
+    set('sig-low', stats.severity_breakdown?.low || 0);
+
+    if (sigEffChart && stats.top_signatures) {
+        const top = stats.top_signatures.slice(0, 8);
+        sigEffChart.data.labels = top.map(s => s.name);
+        sigEffChart.data.datasets[0].data = top.map(s => s.matches);
+        sigEffChart.update('none');
+    }
+}
+
+// Incident Timeline Page
+function renderIncidentTimeline(incidents) {
+    const tl = document.getElementById('incidents-timeline');
+    if (!tl) return;
+    if (!incidents || !incidents.length) {
+        tl.innerHTML = '<div class="empty-state">No incidents recorded yet</div>';
+        return;
+    }
+    tl.innerHTML = incidents.map(inc => {
+        const time = inc.created_at ? new Date(inc.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+        return `<div class="incident-timeline-card severity-${inc.severity}">
+            <div class="incident-time">${time}</div>
+            <div class="incident-detail">
+                <div class="incident-detail-title">${inc.id} — ${inc.attack_type || 'Unknown'}</div>
+                <div class="incident-detail-desc">${inc.narrative || ''}</div>
+                <div class="playbook-steps" style="margin-top:4px">
+                    ${(inc.playbook_steps || []).slice(0, 3).map(s => `<span class="playbook-step${s.automated ? ' automated' : ''}">${s.action}</span>`).join('')}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderPlaybookLibrary(playbooks) {
+    const lib = document.getElementById('playbook-library');
+    if (!lib) return;
+    if (!playbooks || !playbooks.length) {
+        lib.innerHTML = '<div class="empty-state">No playbooks available</div>';
+        return;
+    }
+    lib.innerHTML = playbooks.map(pb => `
+        <div class="playbook-card">
+            <div class="playbook-card-title">${pb.name || pb.attack_type}</div>
+            <div class="playbook-card-steps">${(pb.steps || []).length} steps | Severity: ${pb.severity || '—'}</div>
+        </div>
+    `).join('');
+}
+
+function renderIncidentStats(stats) {
+    if (!stats) return;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('inc-total', stats.active_incidents || 0);
+    const bySev = stats.by_severity || {};
+    set('inc-critical', bySev.critical || 0);
+    set('inc-high', bySev.high || 0);
+    set('inc-medium', bySev.medium || 0);
+}
+
+// Model Page
+function renderRetrainHistory(status) {
+    const container = document.getElementById('retrain-history');
+    if (!container || !status) return;
+    const history = status.retrain_history || [];
+    if (!history.length) {
+        container.innerHTML = '<div class="empty-state">No retraining events</div>';
+        return;
+    }
+    container.innerHTML = history.map(h => `
+        <div class="sig-item">
+            <span class="sig-item-name">v${h.version} → v${h.new_version || '?'}</span>
+            <span style="color:var(--text-secondary)">${h.timestamp ? new Date(h.timestamp * 1000).toLocaleString() : '—'}</span>
+        </div>
+    `).join('');
+}
+
+function renderRLQTable(rlStatus) {
+    const container = document.getElementById('rl-qtable');
+    if (!container || !rlStatus) return;
+    const adjustments = rlStatus.adjustment_history || [];
+    if (!adjustments.length) {
+        container.innerHTML = `<div class="sig-item"><span class="sig-item-name">State</span><span style="color:var(--accent-cyan)">${rlStatus.current_state || '—'}</span></div>
+        <div class="sig-item"><span class="sig-item-name">Epsilon</span><span style="color:var(--accent-cyan)">${rlStatus.epsilon?.toFixed(3) ?? '—'}</span></div>
+        <div class="sig-item"><span class="sig-item-name">Q-Table Size</span><span style="color:var(--accent-cyan)">${rlStatus.q_table_size ?? '—'}</span></div>`;
+        return;
+    }
+    container.innerHTML = adjustments.slice(-8).reverse().map(a => `
+        <div class="sig-item"><span class="sig-item-name">${a.action || '?'}</span><span style="color:var(--accent-yellow)">${a.threshold?.toFixed(4) ?? ''}</span></div>
+    `).join('');
+}
+
+// Severity Chart Update
+function updateSeverityChart(dist) {
+    if (!severityChart || !dist) return;
+    severityChart.data.datasets[0].data = [dist.critical || 0, dist.high || 0, dist.medium || 0, dist.low || 0];
+    severityChart.update('none');
+}
+
+// Trends Chart Update
+function updateTrendsChart(hourly) {
+    if (!trendsChart || !hourly) return;
+    const entries = Object.entries(hourly).sort();
+    trendsChart.data.labels = entries.map(([k]) => k.split(' ')[1] || k);
+    trendsChart.data.datasets[0].data = entries.map(([, v]) => v);
+    trendsChart.update('none');
+}
+
+// Page Refresh Functions
+function refreshAnalyticsPage() {
+    attemptFetch(`${baseApiUrl()}/api/analytics`).then(data => {
+        if (data.severity_distribution) updateSeverityChart(data.severity_distribution);
+        if (data.hourly_attack_counts) updateTrendsChart(data.hourly_attack_counts);
+        if (data.mitre_coverage) renderMitreGrid(data.mitre_coverage, data.mitre_technique_hits);
+        if (data.top_source_ips) renderTopIPs(data.top_source_ips);
+    }).catch(() => { });
+
+    attemptFetch(`${baseApiUrl()}/api/signatures`).then(data => {
+        renderSignatureStats(data.stats);
+    }).catch(() => { });
+
+    attemptFetch(`${baseApiUrl()}/api/kill-chains`).then(data => {
+        renderKillChains(data.active_chains);
+    }).catch(() => { });
+}
+
+function refreshIncidentsPage() {
+    attemptFetch(`${baseApiUrl()}/api/incidents`).then(data => {
+        renderIncidentTimeline(data.incidents);
+        renderIncidentStats(data.stats);
+    }).catch(() => { });
+
+    attemptFetch(`${baseApiUrl()}/api/playbooks`).then(data => {
+        renderPlaybookLibrary(data.playbooks);
+    }).catch(() => { });
+}
+
+function refreshModelsPage() {
+    attemptFetch(`${baseApiUrl()}/api/model-status`).then(data => {
+        updateModelPerf(data, null);
+        renderRetrainHistory(data);
+    }).catch(() => { });
+
+    attemptFetch(`${baseApiUrl()}/api/rl-status`).then(data => {
+        updateModelPerf(null, data);
+        renderRLQTable(data);
+    }).catch(() => { });
+}
+
+function refreshSettingsPage() {
+    attemptFetch(`${baseApiUrl()}/api/signatures`).then(data => {
+        renderSignatureList(data.signatures);
+        renderSignatureStats(data.stats);
+    }).catch(() => { });
+
+    fetchLLMStatus();
+}
+
+function fetchLLMStatus() {
+    attemptFetch(`${baseApiUrl()}/api/llm-status`).then(data => {
+        // Header indicator
+        const dot = document.getElementById('llm-status-dot');
+        const text = document.getElementById('llm-status-text');
+        if (dot) dot.className = `indicator-dot ${data.online ? 'green' : data.enabled ? 'yellow' : 'red'}`;
+        if (text) text.textContent = data.online ? data.model : (data.enabled ? 'Fallback' : 'Disabled');
+
+        // Settings panel
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        set('llm-panel-status', data.online ? '🟢 Online' : (data.enabled ? '🟡 Fallback (Heuristic)' : '🔴 Disabled'));
+        set('llm-panel-model', data.model || '—');
+        set('llm-panel-requests', data.total_requests ?? 0);
+        set('llm-panel-cache', data.cache_hits ?? 0);
+        set('llm-panel-latency', data.avg_latency ? `${(data.avg_latency * 1000).toFixed(0)}ms` : '—');
+        set('llm-panel-fallback', data.online ? 'Inactive' : 'Active (heuristic classification)');
+    }).catch(() => {
+        const dot = document.getElementById('llm-status-dot');
+        const text = document.getElementById('llm-status-text');
+        if (dot) dot.className = 'indicator-dot red';
+        if (text) text.textContent = 'Error';
+    });
+}
+
+// Enhanced fetchAnalytics to include Cat 2 data
+const _origFetchAnalytics = fetchAnalytics;
+fetchAnalytics = function () {
+    _origFetchAnalytics();
+
+    attemptFetch(`${baseApiUrl()}/api/signatures`).then(data => {
+        if (data.stats) {
+            const ct = document.getElementById('sig-count-text');
+            if (ct) ct.textContent = data.stats.total_signatures || 0;
+        }
+    }).catch(() => { });
+
+    attemptFetch(`${baseApiUrl()}/api/kill-chains`).then(data => {
+        if (data.active_chains?.length) renderKillChains(data.active_chains);
+    }).catch(() => { });
+};
+
+/* ================================================================ */
+
 function initialise() {
     bootstrapDashboard();
     wireControls();
+    setupPageNavigation();
+    initCat2Charts();
     if (dom.networkViewport && typeof THREE !== 'undefined') {
         buildScene();
         populateScene();
@@ -1045,6 +1679,10 @@ function initialise() {
     }).catch(() => {
         setSimulationAvailability(false);
     });
+    startAnalyticsPolling();
+    fetchLLMStatus();
+    setInterval(fetchLLMStatus, 15000);
 }
 
 document.addEventListener('DOMContentLoaded', initialise);
+

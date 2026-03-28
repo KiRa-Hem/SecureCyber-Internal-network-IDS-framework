@@ -1,7 +1,11 @@
 import time
+import logging
 from typing import Dict, List, Any
 from app.db import db
 from app.config import settings
+
+logger = logging.getLogger(__name__)
+
 
 class MitigationEngine:
     def __init__(self):
@@ -26,7 +30,7 @@ class MitigationEngine:
         # Add to database
         db.add_to_blocklist(ip, reason, ttl_seconds)
         
-        print(f"IP {ip} blocked: {reason}")
+        logger.info("IP %s blocked: %s", ip, reason)
         return True
     
     def unblock_ip(self, ip: str) -> bool:
@@ -40,7 +44,7 @@ class MitigationEngine:
         # Remove from database
         db.remove_from_blocklist(ip)
         
-        print(f"IP {ip} unblocked")
+        logger.info("IP %s unblocked", ip)
         return True
     
     def is_ip_blocked(self, ip: str) -> bool:
@@ -78,7 +82,7 @@ class MitigationEngine:
         # Add to database
         db.isolate_node(node_id, reason, ttl_seconds)
         
-        print(f"Node {node_id} isolated: {reason}")
+        logger.info("Node %s isolated: %s", node_id, reason)
         return True
     
     def remove_isolation(self, node_id: str) -> bool:
@@ -92,7 +96,7 @@ class MitigationEngine:
         # Remove from database
         db.remove_isolation(node_id)
         
-        print(f"Node {node_id} isolation removed")
+        logger.info("Node %s isolation removed", node_id)
         return True
     
     def is_node_isolated(self, node_id: str) -> bool:

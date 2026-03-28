@@ -102,6 +102,7 @@ class DatabaseClient:
     BLOCKLIST_COLLECTION = "blocklist"
     ISOLATION_COLLECTION = "isolated_nodes"
     AUDIT_COLLECTION = "audit_logs"
+    FEEDBACK_COLLECTION = "alert_feedback"
 
     def __init__(self, mongo: MongoDB):
         self.mongo = mongo
@@ -109,6 +110,7 @@ class DatabaseClient:
         self._memory_blocklist: Dict[str, Dict[str, Any]] = {}
         self._memory_isolated: Dict[str, Dict[str, Any]] = {}
         self._memory_audit: List[Dict[str, Any]] = []
+        self._memory_feedback: List[Dict[str, Any]] = []
 
     def _use_memory(self) -> bool:
         return not self.mongo.ensure_connection()
@@ -138,6 +140,19 @@ class DatabaseClient:
             logger.warning("MongoDB audit insert failed (%s). Using in-memory audit.", exc)
             self.mongo.close()
             self._memory_audit.append(document)
+
+    def store_feedback(self, entry: Dict[str, Any]):
+        document = entry.copy()
+        document.setdefault("timestamp", int(time.time()))
+        if self._use_memory():
+            self._memory_feedback.append(document)
+            return
+        try:
+            self.mongo.insert_one(self.FEEDBACK_COLLECTION, document)
+        except Exception as exc:
+            logger.warning("MongoDB feedback insert failed (%s). Using in-memory feedback.", exc)
+            self.mongo.close()
+            self._memory_feedback.append(document)
 
     def add_to_blocklist(self, ip: str, reason: str, ttl_seconds: int):
         expires = int(time.time()) + ttl_seconds
@@ -191,13 +206,13 @@ class DatabaseClient:
 
     def get_blocklist(self) -> List[Dict[str, Any]]:
         if self._use_memory():
-            return list(self._memory_blocklist.values())
+            return [self._serialize_document(item) for item in self._memory_blocklist.values()]
         try:
-            return self.mongo.find(self.BLOCKLIST_COLLECTION)
+            return [self._serialize_document(item) for item in self.mongo.find(self.BLOCKLIST_COLLECTION)]
         except Exception as exc:
             logger.warning("MongoDB blocklist fetch failed (%s). Using in-memory blocklist.", exc)
             self.mongo.close()
-            return list(self._memory_blocklist.values())
+            return [self._serialize_document(item) for item in self._memory_blocklist.values()]
 
     def isolate_node(self, node_id: str, reason: str, ttl_seconds: int):
         expires = int(time.time()) + ttl_seconds
@@ -251,13 +266,13 @@ class DatabaseClient:
 
     def get_isolated_nodes(self) -> List[Dict[str, Any]]:
         if self._use_memory():
-            return list(self._memory_isolated.values())
+            return [self._serialize_document(item) for item in self._memory_isolated.values()]
         try:
-            return self.mongo.find(self.ISOLATION_COLLECTION)
+            return [self._serialize_document(item) for item in self.mongo.find(self.ISOLATION_COLLECTION)]
         except Exception as exc:
             logger.warning("MongoDB isolation fetch failed (%s). Using in-memory isolation.", exc)
             self.mongo.close()
-            return list(self._memory_isolated.values())
+            return [self._serialize_document(item) for item in self._memory_isolated.values()]
 
     def get_alerts(self, limit: int = 10, offset: int = 0) -> List[Dict[str, Any]]:
         if self._use_memory():
@@ -342,6 +357,10 @@ def init_db():
         audit_collection = mongodb.get_collection(DatabaseClient.AUDIT_COLLECTION)
         audit_collection.create_index([("timestamp", -1)])
         audit_collection.create_index([("event_type", 1)])
+
+        feedback_collection = mongodb.get_collection(DatabaseClient.FEEDBACK_COLLECTION)
+        feedback_collection.create_index([("timestamp", -1)])
+        feedback_collection.create_index([("alert_id", 1)])
 
         logger.info("Database initialized successfully")
         return True

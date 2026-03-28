@@ -29,12 +29,15 @@ Thumbs.db
 *.err
 .env
 backend/.env
+deploy/secrets.env
 pip-wheel-metadata/
 models/training_scripts/data/
 data/*.csv
 models/training_scripts/*.pkl
 logs/
+monitoring/ids_bearer_token
 media/videos/
 frontend/smoke-frontend-*.err
 tmp_diag.py
+tmp_*.pid
 trash/

@@ -24,14 +24,16 @@
   "target_type": "binary",
   "model_type": "xgboost",
   "use_simplified": true,
-  "generated_at": "2026-01-27T15:22:56.453179Z",
+  "generated_at": "2026-03-13T05:29:45.735667Z",
   "thresholds": {
     "isolation_forest": {
       "score_threshold": -3.299129802084456e-17,
       "contamination": 0.01
     },
     "xgboost": {
-      "best_f1_threshold": 4.733551395474933e-05
+      "best_f1_threshold": 6.66732739773579e-05,
+      "runtime_min_threshold": 0.5,
+      "note": "Training-selected threshold is too low for production; runtime uses a safety floor."
     }
   },
   "baseline_stats": {
